@@ -23,10 +23,12 @@ import fr.wseduc.swift.storage.StorageObject;
 import fr.wseduc.swift.utils.*;
 import org.vertx.java.core.*;
 import org.vertx.java.core.buffer.Buffer;
+import org.vertx.java.core.file.AsyncFile;
 import org.vertx.java.core.http.*;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
+import org.vertx.java.core.streams.Pump;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -177,7 +179,6 @@ public class SwiftClient {
 		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
-				log.debug(response.statusCode() + " - " + response.statusMessage());
 				response.pause();
 				if (response.statusCode() == 200 || response.statusCode() == 304) {
 					resp.putHeader("ETag", ((eTag != null) ? eTag : response.headers().get("ETag")));
@@ -205,7 +206,6 @@ public class SwiftClient {
 		req.putHeader("X-Storage-Token", token);
 		//req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
 		req.end();
-		log.debug("Download file : " + id);
 	}
 
 	public void readFile(final String id, final AsyncResultHandler<StorageObject> handler) {
@@ -310,6 +310,45 @@ public class SwiftClient {
 		req.putHeader("X-Storage-Token", token);
 		req.putHeader("Content-Length", "0");
 		req.putHeader("X-Copy-From", "/" + container + "/" + from);
+		req.end();
+	}
+
+	public void writeToFileSystem(String id, String destination, AsyncResultHandler<String> handler) {
+		writeToFileSystem(id, destination, defaultContainer, handler);
+	}
+
+	public void writeToFileSystem(String id, final String destination, String container,
+			final AsyncResultHandler<String> handler) {
+		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
+			@Override
+			public void handle(final HttpClientResponse response) {
+				response.pause();
+				if (response.statusCode() == 200) {
+					vertx.fileSystem().open(destination, new AsyncResultHandler<AsyncFile>() {
+						public void handle(final AsyncResult<AsyncFile> ar) {
+							if (ar.succeeded()) {
+								response.endHandler(new Handler<Void>() {
+									@Override
+									public void handle(Void aVoid) {
+										ar.result().close();
+										handler.handle(new DefaultAsyncResult<>(destination));
+									}
+								});
+								Pump p = Pump.createPump(response, ar.result());
+								p.start();
+
+								response.resume();
+							} else {
+								handler.handle(new DefaultAsyncResult<String>(ar.cause()));
+							}
+						}
+					});
+				} else {
+					handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
+				}
+			}
+		});
+		req.putHeader("X-Storage-Token", token);
 		req.end();
 	}
 

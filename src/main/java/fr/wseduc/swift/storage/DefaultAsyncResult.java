@@ -21,14 +21,14 @@ import org.vertx.java.core.AsyncResult;
 public class DefaultAsyncResult<T> implements AsyncResult<T> {
 
 	private final T object;
-	private final Exception exception;
+	private final Throwable exception;
 
 	public DefaultAsyncResult(T object) {
 		this.object = object;
 		this.exception = null;
 	}
 
-	public DefaultAsyncResult(Exception exception) {
+	public DefaultAsyncResult(Throwable exception) {
 		this.object = null;
 		this.exception = exception;
 	}
