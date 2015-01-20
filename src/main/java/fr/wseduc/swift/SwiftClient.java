@@ -70,7 +70,7 @@ public class SwiftClient {
 			@Override
 			public void handle(HttpClientResponse response) {
 				if (response.statusCode() == 200) {
-					token = response.headers().get("X-Storage-Token");
+					token = response.headers().get("X-Auth-Token");
 					try {
 						basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
 						handler.handle(new DefaultAsyncResult<>((Void) null));
@@ -142,7 +142,7 @@ public class SwiftClient {
 								}
 							}
 						});
-				req.putHeader("X-Storage-Token", token);
+				req.putHeader("X-Auth-Token", token);
 				req.putHeader("Content-Type", metadata.getString("content-type"));
 				req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
 				req.setChunked(true);
@@ -209,7 +209,7 @@ public class SwiftClient {
 				}
 			}
 		});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		//req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
 		req.end();
 	}
@@ -249,7 +249,7 @@ public class SwiftClient {
 				}
 			}
 		});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
 
@@ -270,7 +270,7 @@ public class SwiftClient {
 						}
 					}
 				});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Type", object.getContentType());
 		req.putHeader("X-Object-Meta-Filename", object.getFilename());
 		req.end(object.getBuffer());
@@ -292,7 +292,7 @@ public class SwiftClient {
 						}
 					}
 				});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
 
@@ -313,7 +313,7 @@ public class SwiftClient {
 						}
 					}
 				});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Length", "0");
 		req.putHeader("X-Copy-From", "/" + container + "/" + from);
 		req.end();
@@ -354,7 +354,7 @@ public class SwiftClient {
 				}
 			}
 		});
-		req.putHeader("X-Storage-Token", token);
+		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
 
