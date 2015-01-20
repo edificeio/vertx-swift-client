@@ -35,25 +35,34 @@ import java.util.UUID;
 public class SwiftClient {
 
 	private static final Logger log = LoggerFactory.getLogger(SwiftClient.class);
+	private final Vertx vertx;
 	private final HttpClient httpClient;
 	private final String defaultContainer;
 	private String basePath;
 	private String token;
+	private long tokenLife;
+	private long tokenPeriodic = 0l;
 
 	public SwiftClient(Vertx vertx, URI uri) {
 		this(vertx, uri, "documents");
 	}
 
 	public SwiftClient(Vertx vertx, URI uri, String container) {
+		this(vertx, uri, container, 23 * 3600 * 1000);
+	}
+
+	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife) {
+		this.vertx = vertx;
 		this.httpClient = vertx.createHttpClient()
 				.setHost(uri.getHost())
 				.setPort(uri.getPort())
 				.setMaxPoolSize(16)
 				.setKeepAlive(false);
 		this.defaultContainer = container;
+		this.tokenLife = tokenLife;
 	}
 
-	public void authenticate(java.lang.String user, java.lang.String password, final AsyncResultHandler<Void> handler) {
+	public void authenticate(final String user, final String key, final AsyncResultHandler<Void> handler) {
 		HttpClientRequest req = httpClient.get("/auth/v1.0", new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
@@ -62,6 +71,22 @@ public class SwiftClient {
 					try {
 						basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
 						handler.handle(new DefaultAsyncResult<>((Void) null));
+						if (tokenPeriodic != 0l) {
+							vertx.cancelTimer(tokenPeriodic);
+						}
+						tokenPeriodic = vertx.setPeriodic(tokenLife, new Handler<Long>() {
+							@Override
+							public void handle(Long aLong) {
+								authenticate(user, key, new AsyncResultHandler<Void>() {
+									@Override
+									public void handle(AsyncResult<Void> voidAsyncResult) {
+										if (voidAsyncResult.failed()) {
+											log.error("Periodic authentication error.", voidAsyncResult.cause());
+										}
+									}
+								});
+							}
+						});
 					} catch (URISyntaxException e) {
 						handler.handle(new DefaultAsyncResult<Void>(new AuthenticationException(e.getMessage())));
 					}
@@ -71,7 +96,7 @@ public class SwiftClient {
 			}
 		});
 		req.putHeader("X-Auth-User", user);
-		req.putHeader("X-Auth-Key", password);
+		req.putHeader("X-Auth-Key", key);
 		req.end();
 	}
 
@@ -96,7 +121,7 @@ public class SwiftClient {
 							.putString("message", "file.too.large"));
 					return;
 				}
-				final java.lang.String id = UUID.randomUUID().toString();
+				final String id = UUID.randomUUID().toString();
 				final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
 						new Handler<HttpClientResponse>() {
 							@Override
@@ -289,6 +314,9 @@ public class SwiftClient {
 	}
 
 	public void close() {
+		if (tokenPeriodic != 0l) {
+			vertx.cancelTimer(tokenPeriodic);
+		}
 		if (httpClient != null) {
 			httpClient.close();
 		}
