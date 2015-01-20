@@ -33,6 +33,7 @@ import org.vertx.java.core.streams.Pump;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SwiftClient {
 
@@ -117,6 +118,7 @@ public class SwiftClient {
 			@Override
 			public void handle(final HttpServerFileUpload upload) {
 				upload.pause();
+				final AtomicLong size = new AtomicLong(0l);
 				final JsonObject metadata = FileUtils.metadata(upload);
 				if (maxSize != null && maxSize < metadata.getLong("size", 0l)) {
 					handler.handle(new JsonObject().putString("status", "error")
@@ -129,6 +131,9 @@ public class SwiftClient {
 							@Override
 							public void handle(HttpClientResponse response) {
 								if (response.statusCode() == 201) {
+									if (metadata.getLong("size") == 0l) {
+										metadata.putNumber("size", size.get());
+									}
 									handler.handle(new JsonObject().putString("_id", id)
 											.putString("status", "ok")
 											.putObject("metadata", metadata));
@@ -144,6 +149,7 @@ public class SwiftClient {
 				upload.dataHandler(new Handler<Buffer>() {
 					public void handle(Buffer data) {
 						req.write(data);
+						size.addAndGet(data.length());
 					}
 				});
 				upload.endHandler(new VoidHandler() {
