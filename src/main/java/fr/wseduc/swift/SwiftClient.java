@@ -25,28 +25,31 @@ import org.vertx.java.core.*;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.*;
 import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.core.logging.Logger;
+import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.UUID;
 
 public class SwiftClient {
 
+	private static final Logger log = LoggerFactory.getLogger(SwiftClient.class);
 	private final HttpClient httpClient;
-	private final String account;
 	private final String defaultContainer;
+	private String basePath;
 	private String token;
 
-	public SwiftClient(Vertx vertx, URI uri, String account) {
-		this(vertx, uri, account, "documents");
+	public SwiftClient(Vertx vertx, URI uri) {
+		this(vertx, uri, "documents");
 	}
 
-	public SwiftClient(Vertx vertx, URI uri, String account, String container) {
+	public SwiftClient(Vertx vertx, URI uri, String container) {
 		this.httpClient = vertx.createHttpClient()
 				.setHost(uri.getHost())
 				.setPort(uri.getPort())
 				.setMaxPoolSize(16)
 				.setKeepAlive(false);
-		this.account = account;
 		this.defaultContainer = container;
 	}
 
@@ -56,7 +59,12 @@ public class SwiftClient {
 			public void handle(HttpClientResponse response) {
 				if (response.statusCode() == 200) {
 					token = response.headers().get("X-Storage-Token");
-					handler.handle(new DefaultAsyncResult<>((Void) null));
+					try {
+						basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
+						handler.handle(new DefaultAsyncResult<>((Void) null));
+					} catch (URISyntaxException e) {
+						handler.handle(new DefaultAsyncResult<Void>(new AuthenticationException(e.getMessage())));
+					}
 				} else {
 					handler.handle(new DefaultAsyncResult<Void>(new AuthenticationException(response.statusMessage())));
 				}
@@ -67,19 +75,29 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void uploadFile(final HttpServerRequest request, final Handler<JsonObject> handler) {
-		uploadFile(request, defaultContainer, handler);
+	public void uploadFile(HttpServerRequest request, Handler<JsonObject> handler) {
+		uploadFile(request, defaultContainer, null, handler);
 	}
 
-	public void uploadFile(final HttpServerRequest request, final String container, final Handler<JsonObject> handler) {
+	public void uploadFile(HttpServerRequest request, Long maxSize, Handler<JsonObject> handler) {
+		uploadFile(request, defaultContainer, maxSize, handler);
+	}
+
+	public void uploadFile(final HttpServerRequest request, final String container, final Long maxSize,
+			final Handler<JsonObject> handler) {
 		request.expectMultiPart(true);
 		request.uploadHandler(new Handler<HttpServerFileUpload>() {
 			@Override
 			public void handle(final HttpServerFileUpload upload) {
 				upload.pause();
 				final JsonObject metadata = FileUtils.metadata(upload);
+				if (maxSize != null && maxSize < metadata.getLong("size", 0l)) {
+					handler.handle(new JsonObject().putString("status", "error")
+							.putString("message", "file.too.large"));
+					return;
+				}
 				final java.lang.String id = UUID.randomUUID().toString();
-				final HttpClientRequest req = httpClient.put("/v1/" + account + "/" + container + "/" + id,
+				final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
 						new Handler<HttpClientResponse>() {
 							@Override
 							public void handle(HttpClientResponse response) {
@@ -131,9 +149,10 @@ public class SwiftClient {
 			java.lang.String name = FileUtils.getNameWithExtension(downloadName, metadata);
 			resp.putHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
 		}
-		HttpClientRequest req = httpClient.get("/v1/" + account + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
+		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
+				log.debug(response.statusCode() + " - " + response.statusMessage());
 				response.pause();
 				if (response.statusCode() == 200 || response.statusCode() == 304) {
 					resp.putHeader("ETag", ((eTag != null) ? eTag : response.headers().get("ETag")));
@@ -159,8 +178,9 @@ public class SwiftClient {
 			}
 		});
 		req.putHeader("X-Storage-Token", token);
-		req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
+		//req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
 		req.end();
+		log.debug("Download file : " + id);
 	}
 
 	public void readFile(final String id, final AsyncResultHandler<StorageObject> handler) {
@@ -168,7 +188,7 @@ public class SwiftClient {
 	}
 
 	public void readFile(final String id, String container, final AsyncResultHandler<StorageObject> handler) {
-		HttpClientRequest req = httpClient.get("/v1/" + account + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
+		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(final HttpClientResponse response) {
 				response.pause();
@@ -208,7 +228,7 @@ public class SwiftClient {
 
 	public void writeFile(StorageObject object, String container, final AsyncResultHandler<String> handler) {
 		final String id = (object.getId() != null) ? object.getId() : UUID.randomUUID().toString();
-		final HttpClientRequest req = httpClient.put("/v1/" + account + "/" + container + "/" + id,
+		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
 				new Handler<HttpClientResponse>() {
 					@Override
 					public void handle(HttpClientResponse response) {
@@ -223,6 +243,49 @@ public class SwiftClient {
 		req.putHeader("Content-Type", object.getContentType());
 		req.putHeader("X-Object-Meta-Filename", object.getFilename());
 		req.end(object.getBuffer());
+	}
+
+	public void deleteFile(String id, final AsyncResultHandler<Void> handler) {
+		deleteFile(id, defaultContainer, handler);
+	}
+
+	public void deleteFile(String id, String container, final AsyncResultHandler<Void> handler) {
+		final HttpClientRequest req = httpClient.delete(basePath + "/" + container + "/" + id,
+				new Handler<HttpClientResponse>() {
+					@Override
+					public void handle(HttpClientResponse response) {
+						if (response.statusCode() == 204) {
+							handler.handle(new DefaultAsyncResult<>((Void) null));
+						} else {
+							handler.handle(new DefaultAsyncResult<Void>(new StorageException(response.statusMessage())));
+						}
+					}
+				});
+		req.putHeader("X-Storage-Token", token);
+		req.end();
+	}
+
+	public void copyFile(String from, final AsyncResultHandler<String> handler) {
+		copyFile(from, defaultContainer, handler);
+	}
+
+	public void copyFile(String from, String container, final AsyncResultHandler<String> handler) {
+		final String id = UUID.randomUUID().toString();
+		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
+				new Handler<HttpClientResponse>() {
+					@Override
+					public void handle(HttpClientResponse response) {
+						if (response.statusCode() == 201) {
+							handler.handle(new DefaultAsyncResult<>(id));
+						} else {
+							handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
+						}
+					}
+				});
+		req.putHeader("X-Storage-Token", token);
+		req.putHeader("Content-Length", "0");
+		req.putHeader("X-Copy-From", "/" + container + "/" + from);
+		req.end();
 	}
 
 	public void close() {
