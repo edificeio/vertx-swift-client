@@ -69,7 +69,7 @@ public class SwiftClient {
 		HttpClientRequest req = httpClient.get("/auth/v1.0", new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
-				if (response.statusCode() == 200) {
+				if (response.statusCode() == 200 || response.statusCode() == 204) {
 					token = response.headers().get("X-Auth-Token");
 					try {
 						basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
