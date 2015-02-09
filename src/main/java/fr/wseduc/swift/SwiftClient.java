@@ -179,6 +179,17 @@ public class SwiftClient {
 
 	public void downloadFile(String id, final HttpServerRequest request, String container,
 			boolean inline, String downloadName, JsonObject metadata, final String eTag) {
+		downloadFile(id, request, container, inline, downloadName, metadata, eTag, null);
+	}
+
+	public void downloadFile(String id, final HttpServerRequest request, boolean inline,
+			String downloadName, JsonObject metadata, final String eTag, Handler<AsyncResult<Void>> resultHandler) {
+		downloadFile(id, request, defaultContainer, inline, downloadName, metadata, eTag, resultHandler);
+	}
+
+	public void downloadFile(String id, final HttpServerRequest request, String container,
+			boolean inline, String downloadName, JsonObject metadata, final String eTag,
+			final Handler<AsyncResult<Void>> resultHandler) {
 		final HttpServerResponse resp = request.response();
 		if (!inline) {
 			java.lang.String name = FileUtils.getNameWithExtension(downloadName, metadata);
@@ -203,11 +214,17 @@ public class SwiftClient {
 						@Override
 						public void handle(Void event) {
 							resp.end();
+							if (resultHandler != null) {
+								resultHandler.handle(new DefaultAsyncResult<>((Void) null));
+							}
 						}
 					});
 					response.resume();
 				} else {
 					resp.setStatusCode(response.statusCode()).setStatusMessage(response.statusMessage()).end();
+					if (resultHandler != null) {
+						resultHandler.handle(new DefaultAsyncResult<>((Void) null));
+					}
 				}
 			}
 		});
