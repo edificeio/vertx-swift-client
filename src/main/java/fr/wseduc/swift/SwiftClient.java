@@ -30,6 +30,8 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.core.streams.Pump;
 
+import javax.mail.internet.MimeUtility;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
@@ -146,7 +148,12 @@ public class SwiftClient {
 						});
 				req.putHeader("X-Auth-Token", token);
 				req.putHeader("Content-Type", metadata.getString("content-type"));
-				req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
+				try {
+					req.putHeader("X-Object-Meta-Filename", MimeUtility.encodeText(metadata.getString("filename")));
+				} catch (UnsupportedEncodingException e) {
+					log.error(e.getMessage(), e);
+					req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
+				}
 				req.setChunked(true);
 				upload.dataHandler(new Handler<Buffer>() {
 					public void handle(Buffer data) {
@@ -253,10 +260,18 @@ public class SwiftClient {
 					response.endHandler(new Handler<Void>() {
 						@Override
 						public void handle(Void event) {
+							String filename = response.headers().get("X-Object-Meta-Filename");
+							if (filename != null) {
+								try {
+									filename = MimeUtility.decodeText(filename);
+								} catch (UnsupportedEncodingException e) {
+									log.error(e.getMessage(), e);
+								}
+							}
 							StorageObject o = new StorageObject(
 									id,
 									buffer,
-									response.headers().get("X-Object-Meta-Filename"),
+									filename,
 									response.headers().get("Content-Type")
 							);
 							handler.handle(new DefaultAsyncResult<>(o));
@@ -291,7 +306,12 @@ public class SwiftClient {
 				});
 		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Type", object.getContentType());
-		req.putHeader("X-Object-Meta-Filename", object.getFilename());
+		try {
+			req.putHeader("X-Object-Meta-Filename", MimeUtility.encodeText(object.getFilename()));
+		} catch (UnsupportedEncodingException e) {
+			log.error(e.getMessage(), e);
+			req.putHeader("X-Object-Meta-Filename", object.getFilename());
+		}
 		req.end(object.getBuffer());
 	}
 
