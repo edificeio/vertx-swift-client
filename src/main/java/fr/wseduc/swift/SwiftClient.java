@@ -208,6 +208,7 @@ public class SwiftClient {
 				response.pause();
 				if (response.statusCode() == 200 || response.statusCode() == 304) {
 					resp.putHeader("ETag", ((eTag != null) ? eTag : response.headers().get("ETag")));
+					resp.putHeader("Content-Type", response.headers().get("Content-Type"));
 				}
 				if (response.statusCode() == 200) {
 					resp.setChunked(true);
