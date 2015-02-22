@@ -21,6 +21,9 @@ import fr.wseduc.swift.exception.StorageException;
 import fr.wseduc.swift.storage.DefaultAsyncResult;
 import fr.wseduc.swift.storage.StorageObject;
 import fr.wseduc.swift.utils.*;
+import org.apache.james.mime4j.codec.DecodeMonitor;
+import org.apache.james.mime4j.codec.DecoderUtil;
+import org.apache.james.mime4j.codec.EncoderUtil;
 import org.vertx.java.core.*;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.file.AsyncFile;
@@ -30,8 +33,6 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.core.streams.Pump;
 
-import javax.mail.internet.MimeUtility;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
@@ -149,8 +150,9 @@ public class SwiftClient {
 				req.putHeader("X-Auth-Token", token);
 				req.putHeader("Content-Type", metadata.getString("content-type"));
 				try {
-					req.putHeader("X-Object-Meta-Filename", MimeUtility.encodeText(metadata.getString("filename")));
-				} catch (UnsupportedEncodingException e) {
+					req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+							metadata.getString("filename"), EncoderUtil.Usage.WORD_ENTITY, 0));
+				} catch (IllegalArgumentException e) {
 					log.error(e.getMessage(), e);
 					req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
 				}
@@ -264,8 +266,9 @@ public class SwiftClient {
 							String filename = response.headers().get("X-Object-Meta-Filename");
 							if (filename != null) {
 								try {
-									filename = MimeUtility.decodeText(filename);
-								} catch (UnsupportedEncodingException e) {
+									filename = DecoderUtil.decodeEncodedWords(
+											filename, DecodeMonitor.SILENT);
+								} catch (IllegalArgumentException e) {
 									log.error(e.getMessage(), e);
 								}
 							}
@@ -308,8 +311,9 @@ public class SwiftClient {
 		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Type", object.getContentType());
 		try {
-			req.putHeader("X-Object-Meta-Filename", MimeUtility.encodeText(object.getFilename()));
-		} catch (UnsupportedEncodingException e) {
+			req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+					object.getFilename(), EncoderUtil.Usage.WORD_ENTITY, 0));
+		} catch (IllegalArgumentException e) {
 			log.error(e.getMessage(), e);
 			req.putHeader("X-Object-Meta-Filename", object.getFilename());
 		}
