@@ -58,6 +58,10 @@ public class SwiftClient {
 	}
 
 	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife) {
+		this(vertx, uri, container, tokenLife, false);
+	}
+
+	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive) {
 		this.vertx = vertx;
 		final int port = (uri.getPort() > 0) ? uri.getPort() : ("https".equals(uri.getScheme()) ? 443 : 80);
 		this.httpClient = vertx.createHttpClient()
@@ -65,7 +69,7 @@ public class SwiftClient {
 				.setPort(port)
 				.setMaxPoolSize(16)
 				.setSSL("https".equals(uri.getScheme()))
-				.setKeepAlive(false);
+				.setKeepAlive(keepAlive);
 		this.defaultContainer = container;
 		this.tokenLife = tokenLife;
 	}
