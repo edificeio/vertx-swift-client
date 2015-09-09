@@ -33,8 +33,13 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.core.streams.Pump;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -404,6 +409,69 @@ public class SwiftClient {
 		});
 		req.putHeader("X-Auth-Token", token);
 		req.end();
+	}
+
+	public void writeFromFileSystem(final String id, String path, final String container,
+			final Handler<JsonObject> handler) {
+		if (id == null || id.trim().isEmpty() || path == null ||
+				path.trim().isEmpty() || path.endsWith(File.separator)) {
+			handler.handle(new JsonObject().putString("status", "error")
+					.putString("message", "invalid.parameter"));
+			return;
+		}
+		final String filename = path.contains(File.separator) ?
+				path.substring(path.lastIndexOf(File.separator) + 1) : path;
+		final String contentType = getContentType(path);
+		vertx.fileSystem().open(path, new Handler<AsyncResult<AsyncFile>>() {
+			@Override
+			public void handle(AsyncResult<AsyncFile> asyncFileAsyncResult) {
+				if (asyncFileAsyncResult.succeeded()) {
+					final HttpClientRequest req = httpClient.put(
+							basePath + "/" + container + "/" + id,
+							new Handler<HttpClientResponse>() {
+								@Override
+								public void handle(HttpClientResponse response) {
+									if (response.statusCode() == 201) {
+										handler.handle(new JsonObject().putString("_id", id)
+												.putString("status", "ok"));
+									} else {
+										handler.handle(new JsonObject().putString("status", "error"));
+									}
+								}
+							});
+					req.putHeader("X-Auth-Token", token);
+					req.putHeader("Content-Type", contentType);
+					try {
+						req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+								filename, EncoderUtil.Usage.WORD_ENTITY, 0));
+					} catch (IllegalArgumentException e) {
+						log.error(e.getMessage(), e);
+						req.putHeader("X-Object-Meta-Filename", filename);
+					}
+					req.setChunked(true);
+					Pump p = Pump.createPump(asyncFileAsyncResult.result(), req);
+					asyncFileAsyncResult.result().endHandler(new Handler<Void>() {
+						@Override
+						public void handle(Void aVoid) {
+							req.end();
+						}
+					});
+					p.start();
+				} else {
+					handler.handle(new JsonObject().putString("status", "error")
+							.putString("message", asyncFileAsyncResult.cause().getMessage()));
+				}
+			}
+		});
+	}
+
+	private String getContentType(String p) {
+		try {
+			Path source = Paths.get(p);
+			return Files.probeContentType(source);
+		} catch (IOException e) {
+			return "";
+		}
 	}
 
 	public void close() {
