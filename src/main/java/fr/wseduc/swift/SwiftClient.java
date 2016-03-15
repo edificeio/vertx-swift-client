@@ -40,6 +40,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -114,6 +115,38 @@ public class SwiftClient {
 		});
 		req.putHeader("X-Auth-User", user);
 		req.putHeader("X-Auth-Key", key);
+		req.end();
+	}
+
+	public void headContainer(AsyncResultHandler<JsonObject> handler) {
+		headContainer(defaultContainer, handler);
+	}
+
+	public void headContainer(String container, final AsyncResultHandler<JsonObject> handler) {
+		HttpClientRequest req = httpClient.head(basePath + "/" + container, new Handler<HttpClientResponse>() {
+			@Override
+			public void handle(final HttpClientResponse response) {
+				if (response.statusCode() == 204) {
+					try {
+						final JsonObject res = new JsonObject();
+						if (response.headers().get("X-Container-Object-Count") != null) {
+							res.putNumber("X-Container-Object-Count", Long.parseLong(response.headers()
+									.get("X-Container-Object-Count")));
+						}
+						if (response.headers().get("X-Container-Bytes-Used") != null) {
+							res.putNumber("X-Container-Bytes-Used", Long.parseLong(response.headers()
+									.get("X-Container-Bytes-Used")));
+						}
+						handler.handle(new DefaultAsyncResult<>(res));
+					} catch (NumberFormatException e) {
+						handler.handle(new DefaultAsyncResult<JsonObject>(e));
+					}
+				} else {
+					handler.handle(new DefaultAsyncResult<JsonObject>(new StorageException(response.statusMessage())));
+				}
+			}
+		});
+		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
 
