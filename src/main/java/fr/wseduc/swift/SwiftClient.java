@@ -40,7 +40,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -48,7 +47,7 @@ public class SwiftClient {
 
 	private static final Logger log = LoggerFactory.getLogger(SwiftClient.class);
 	private final Vertx vertx;
-	private final HttpClient httpClient;
+	private final ResilientHttpClient httpClient;
 	private final String defaultContainer;
 	private String basePath;
 	private String token;
@@ -68,19 +67,37 @@ public class SwiftClient {
 	}
 
 	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive) {
+		this(vertx, uri, container, tokenLife, keepAlive, 10000, 100, 10000l);
+	}
+
+	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive,
+					   int timeout, int threshold, long openDelay) {
 		this.vertx = vertx;
-		final int port = (uri.getPort() > 0) ? uri.getPort() : ("https".equals(uri.getScheme()) ? 443 : 80);
-		this.httpClient = vertx.createHttpClient()
-				.setHost(uri.getHost())
-				.setPort(port)
-				.setMaxPoolSize(16)
-				.setSSL("https".equals(uri.getScheme()))
-				.setKeepAlive(keepAlive);
 		this.defaultContainer = container;
 		this.tokenLife = tokenLife;
+		this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay);
 	}
 
 	public void authenticate(final String user, final String key, final AsyncResultHandler<Void> handler) {
+		httpClient.setHalfOpenHandler(new Handler<ResilientHttpClient.HalfOpenResult>() {
+			@Override
+			public void handle(final ResilientHttpClient.HalfOpenResult halfOpenResult) {
+				doAuthenticate(user, key, new AsyncResultHandler<Void>() {
+					@Override
+					public void handle(AsyncResult<Void> ar) {
+						if (ar.succeeded()) {
+							halfOpenResult.success();
+						} else {
+							halfOpenResult.fail();
+						}
+					}
+				});
+			}
+		});
+		doAuthenticate(user, key, handler);
+	}
+
+	private void doAuthenticate(final String user, final String key, final AsyncResultHandler<Void> handler) {
 		HttpClientRequest req = httpClient.get("/auth/v1.0", new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
@@ -95,7 +112,7 @@ public class SwiftClient {
 						tokenPeriodic = vertx.setPeriodic(tokenLife, new Handler<Long>() {
 							@Override
 							public void handle(Long aLong) {
-								authenticate(user, key, new AsyncResultHandler<Void>() {
+								doAuthenticate(user, key, new AsyncResultHandler<Void>() {
 									@Override
 									public void handle(AsyncResult<Void> voidAsyncResult) {
 										if (voidAsyncResult.failed()) {
@@ -146,6 +163,7 @@ public class SwiftClient {
 				}
 			}
 		});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
@@ -189,6 +207,7 @@ public class SwiftClient {
 								}
 							}
 						});
+				if (req == null) return;
 				req.putHeader("X-Auth-Token", token);
 				req.putHeader("Content-Type", metadata.getString("content-type"));
 				try {
@@ -280,6 +299,7 @@ public class SwiftClient {
 				}
 			}
 		});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		//req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
 		req.end();
@@ -329,6 +349,7 @@ public class SwiftClient {
 				}
 			}
 		});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
@@ -350,6 +371,7 @@ public class SwiftClient {
 						}
 					}
 				});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Type", object.getContentType());
 		try {
@@ -378,6 +400,7 @@ public class SwiftClient {
 						}
 					}
 				});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
@@ -399,6 +422,7 @@ public class SwiftClient {
 						}
 					}
 				});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.putHeader("Content-Length", "0");
 		req.putHeader("X-Copy-From", "/" + container + "/" + from);
@@ -440,6 +464,7 @@ public class SwiftClient {
 				}
 			}
 		});
+		if (req == null) return;
 		req.putHeader("X-Auth-Token", token);
 		req.end();
 	}
@@ -472,6 +497,7 @@ public class SwiftClient {
 									}
 								}
 							});
+					if (req == null) return;
 					req.putHeader("X-Auth-Token", token);
 					req.putHeader("Content-Type", contentType);
 					try {
