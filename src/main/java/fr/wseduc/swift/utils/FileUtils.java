@@ -16,8 +16,8 @@
 
 package fr.wseduc.swift.utils;
 
-import org.vertx.java.core.http.HttpServerFileUpload;
-import org.vertx.java.core.json.JsonObject;
+import io.vertx.core.http.HttpServerFileUpload;
+import io.vertx.core.json.JsonObject;
 
 import java.text.Normalizer;
 
@@ -46,12 +46,12 @@ public class FileUtils {
 
 	public static JsonObject metadata(HttpServerFileUpload upload) {
 		JsonObject metadata = new JsonObject();
-		metadata.putString("name", upload.name());
-		metadata.putString("filename", upload.filename());
-		metadata.putString("content-type", upload.contentType());
-		metadata.putString("content-transfer-encoding", upload.contentTransferEncoding());
-		metadata.putString("charset", upload.charset().name());
-		metadata.putNumber("size", upload.size());
+		metadata.put("name", upload.name());
+		metadata.put("filename", upload.filename());
+		metadata.put("content-type", upload.contentType());
+		metadata.put("content-transfer-encoding", upload.contentTransferEncoding());
+		metadata.put("charset", upload.charset());
+		metadata.put("size", upload.size());
 		return metadata;
 	}
 

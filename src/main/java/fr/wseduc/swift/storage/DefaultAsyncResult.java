@@ -16,7 +16,7 @@
 
 package fr.wseduc.swift.storage;
 
-import org.vertx.java.core.AsyncResult;
+import io.vertx.core.AsyncResult;
 
 public class DefaultAsyncResult<T> implements AsyncResult<T> {
 

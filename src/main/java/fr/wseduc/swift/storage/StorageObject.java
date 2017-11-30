@@ -16,7 +16,7 @@
 
 package fr.wseduc.swift.storage;
 
-import org.vertx.java.core.buffer.Buffer;
+import io.vertx.core.buffer.Buffer;
 
 public class StorageObject {
 

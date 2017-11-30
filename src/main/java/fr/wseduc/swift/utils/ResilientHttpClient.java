@@ -1,17 +1,15 @@
 package fr.wseduc.swift.utils;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.MultiMap;
-import org.vertx.java.core.Vertx;
-import org.vertx.java.core.http.*;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.java.core.logging.impl.LoggerFactory;
+import io.vertx.core.*;
+import io.vertx.core.http.*;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.streams.ReadStream;
 
-import javax.net.ssl.SSLContext;
 import java.net.URI;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public class ResilientHttpClient implements HttpClient {
 
@@ -38,6 +36,741 @@ public class ResilientHttpClient implements HttpClient {
 		reconfigure();
 	}
 
+	@Override
+	public HttpClient websocket(RequestOptions options, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(options, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(port, host, requestURI, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(options, wsConnect, failureHandler);
+	}
+
+	public HttpClient websocket(int port, String host, String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler){
+		return httpClient.websocket(port, host, requestURI, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(host, requestURI, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(host, requestURI, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(options, headers, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(port, host, requestURI, headers, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(options, headers, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(port, host, requestURI, headers, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(host, requestURI, headers, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(host, requestURI, headers, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(options, headers, version, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(port, host, requestURI, headers, version, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return websocket(options, headers, version, null, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version
+			, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(port, host, requestURI, headers, version, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(host, requestURI, headers, version, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version
+			, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(host, requestURI, headers, version, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(options, headers, version, subProtocols, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version,
+								String subProtocols, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(port, host, requestURI, headers, version, subProtocols, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocketAbs(String url, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(url, headers, version, subProtocols, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(options, headers, version, subProtocols, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version,
+								String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(port, host, requestURI, headers, version, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(host, requestURI, headers, version, subProtocols, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols
+			, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(host, requestURI, headers, version, subProtocols, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(requestURI, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(requestURI, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(requestURI, headers, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(requestURI, headers, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(requestURI, headers, version, wsConnect);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(requestURI, headers, version, wsConnect, failureHandler);
+	}
+
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
+		return httpClient.websocket(requestURI, headers, version, subProtocols, wsConnect);
+	}
+	@Override
+	public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols
+			, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
+		return httpClient.websocket(requestURI, headers, version, wsConnect, failureHandler);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(RequestOptions options) {
+		return websocketStream(options, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI) {
+		return websocketStream(port, host, requestURI, null, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String host, String requestURI) {
+		return httpClient.websocketStream(host, requestURI);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers) {
+		return websocketStream(options, headers, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers) {
+		return websocketStream(port, host, requestURI, headers, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers) {
+		return httpClient.websocketStream(host, requestURI, headers);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers, WebsocketVersion version) {
+		return websocketStream(options, headers, version, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version) {
+		return websocketStream(port, host, requestURI, headers, version, null);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers, WebsocketVersion version) {
+		return httpClient.websocketStream(host, requestURI, headers, version);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStreamAbs(String url, MultiMap headers, WebsocketVersion version, String subProtocols) {
+		return httpClient.websocketStreamAbs(url, headers, version, subProtocols);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols) {
+		return httpClient.websocketStream(options, headers, version, subProtocols);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version,
+										   String subProtocols) {
+		return httpClient.websocketStream(port, host, requestURI, headers, version, subProtocols);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols) {
+		return httpClient.websocketStream(host, requestURI, headers, version, subProtocols);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String requestURI) {
+		return httpClient.websocketStream(requestURI);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers) {
+		return httpClient.websocketStream(requestURI, headers);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers, WebsocketVersion version) {
+		return httpClient.websocketStream(requestURI, headers, version);
+	}
+
+	@Override
+	public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols) {
+		return httpClient.websocketStream(requestURI, headers, version, subProtocols);
+	}
+
+	@Override
+	public HttpClientRequest requestAbs(HttpMethod method, String absoluteURI, Handler<HttpClientResponse> handler) {
+		if (httpClient == null) {
+			handler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.requestAbs(method, absoluteURI, handler);
+		preConfigureRequest(handler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest get(RequestOptions options) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.get(options);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI, Handler<HttpClientResponse> handler) {
+		if (httpClient == null) {
+			handler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, port, host, requestURI, handler);
+		preConfigureRequest(handler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, String host, String requestURI, Handler<HttpClientResponse> handler) {
+		if (httpClient == null) {
+			handler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, host, requestURI, handler);
+		preConfigureRequest(handler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, String requestURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, requestURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		if (httpClient == null) {
+			responseHandler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, requestURI, responseHandler);
+		preConfigureRequest(responseHandler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest requestAbs(HttpMethod method, String absoluteURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.requestAbs(method, absoluteURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, port, host, requestURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		if (httpClient == null) {
+			responseHandler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, options, responseHandler);
+		preConfigureRequest(responseHandler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, RequestOptions options) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, options);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, String host, String requestURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.request(method, host, requestURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest get(int port, String host, String requestURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.get(port, host, requestURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest get(String host, String requestURI) {
+		if (httpClient == null) {
+			return null;
+		}
+		final HttpClientRequest req = httpClient.get(host, requestURI);
+		preConfigureRequest(null, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest get(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.GET, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest get(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.GET, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest get(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		if (httpClient == null) {
+			responseHandler.handle(new ErrorHttpClientResponse(500, ""));
+			return null;
+		}
+		final HttpClientRequest req = httpClient.get(host, requestURI, responseHandler);
+		preConfigureRequest(responseHandler, req);
+		return req;
+	}
+
+	@Override
+	public HttpClientRequest get(String requestURI) {
+		return request(HttpMethod.GET, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest getAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.GET, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest getAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.GET, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClient getNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		get(options, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient getNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		get(port, host, requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient getNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		get(host, requestURI, responseHandler);
+		return this;
+	}
+
+	@Override
+	public HttpClientRequest post(RequestOptions options) {
+		return request(HttpMethod.POST, options);
+	}
+
+	@Override
+	public HttpClientRequest post(int port, String host, String requestURI) {
+		return request(HttpMethod.POST, port, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest post(String host, String requestURI) {
+		return request(HttpMethod.POST, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest post(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.POST, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest post(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.POST, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest post(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.POST, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest post(String requestURI) {
+		return request(HttpMethod.POST, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest postAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.POST, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest postAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.POST, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest head(RequestOptions options) {
+		return request(HttpMethod.HEAD, options);
+	}
+
+	@Override
+	public HttpClientRequest head(int port, String host, String requestURI) {
+		return request(HttpMethod.HEAD, port, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest head(String host, String requestURI) {
+		return request(HttpMethod.HEAD, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest head(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.HEAD, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest head(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.HEAD, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest head(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.HEAD, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest head(String requestURI) {
+		return request(HttpMethod.HEAD, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest headAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.HEAD, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest headAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.HEAD, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClient headNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		head(options, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient headNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		head(port, host, requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient headNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		head(host, requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient headNow(String requestURI, Handler<HttpClientResponse> responseHandler) {
+		head(requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClientRequest options(RequestOptions options) {
+		return request(HttpMethod.OPTIONS, options);
+	}
+
+	@Override
+	public HttpClientRequest options(int port, String host, String requestURI) {
+		return request(HttpMethod.OPTIONS, port, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest options(String host, String requestURI) {
+		return request(HttpMethod.OPTIONS, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest options(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.OPTIONS, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest options(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.OPTIONS, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest options(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.OPTIONS, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest options(String requestURI) {
+		return request(HttpMethod.OPTIONS, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest optionsAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.OPTIONS, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest optionsAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.OPTIONS, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClient optionsNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		options(options, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient optionsNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		options(port, host, requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient optionsNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		options(host, requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClient optionsNow(String requestURI, Handler<HttpClientResponse> responseHandler) {
+		options(requestURI, responseHandler).end();
+		return this;
+	}
+
+	@Override
+	public HttpClientRequest put(RequestOptions options) {
+		return request(HttpMethod.PUT, options);
+	}
+
+	@Override
+	public HttpClientRequest put(int port, String host, String requestURI) {
+		return request(HttpMethod.PUT, port, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest put(String host, String requestURI) {
+		return request(HttpMethod.PUT, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest put(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.PUT, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest put(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.PUT, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest put(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.PUT, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest put(String requestURI) {
+		return request(HttpMethod.PUT, requestURI);
+	}
+
+
+	@Override
+	public HttpClientRequest putAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.PUT, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest putAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.PUT, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest delete(RequestOptions options) {
+		return request(HttpMethod.DELETE, options);
+	}
+
+	@Override
+	public HttpClientRequest delete(int port, String host, String requestURI) {
+		return request(HttpMethod.DELETE, port, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest delete(String host, String requestURI) {
+		return request(HttpMethod.DELETE, host, requestURI);
+	}
+
+	@Override
+	public HttpClientRequest delete(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.DELETE, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest delete(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.DELETE, port, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest delete(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return request(HttpMethod.DELETE, host, requestURI, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest delete(String requestURI) {
+		return request(HttpMethod.DELETE, requestURI);
+	}
+
+
+	@Override
+	public HttpClientRequest deleteAbs(String absoluteURI) {
+		return requestAbs(HttpMethod.DELETE, absoluteURI);
+	}
+
+	@Override
+	public HttpClientRequest deleteAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return requestAbs(HttpMethod.DELETE, absoluteURI, responseHandler);
+	}
+
+	@Override
+	public HttpClient redirectHandler(Function<HttpClientResponse, Future<HttpClientRequest>> handler) {
+		httpClient.redirectHandler(handler);
+		return this;
+	}
+
+	@Override
+	public Function<HttpClientResponse, Future<HttpClientRequest>> redirectHandler() {
+		return httpClient.redirectHandler();
+	}
+
+	@Override
+	public boolean isMetricsEnabled() {
+		return httpClient.isMetricsEnabled();
+	}
+
 	public class HalfOpenResult {
 
 		private ResilientHttpClient r;
@@ -56,129 +789,12 @@ public class ResilientHttpClient implements HttpClient {
 	}
 
 	@Override
-	public HttpClient exceptionHandler(Handler<Throwable> handler) {
-		httpClient.exceptionHandler(handler);
-		return this;
-	}
-
-	@Override
-	public HttpClient setMaxPoolSize(int i) {
-		httpClient.setMaxPoolSize(i);
-		return this;
-	}
-
-	@Override
-	public int getMaxPoolSize() {
-		return httpClient.getMaxPoolSize();
-	}
-
-	@Override
-	public HttpClient setMaxWaiterQueueSize(int i) {
-		httpClient.setMaxWaiterQueueSize(i);
-		return this;
-	}
-
-	@Override
-	public int getMaxWaiterQueueSize() {
-		return httpClient.getMaxWaiterQueueSize();
-	}
-
-	@Override
-	public HttpClient setConnectionMaxOutstandingRequestCount(int i) {
-		httpClient.setConnectionMaxOutstandingRequestCount(i);
-		return this;
-	}
-
-	@Override
-	public int getConnectionMaxOutstandingRequestCount() {
-		return httpClient.getConnectionMaxOutstandingRequestCount();
-	}
-
-	@Override
-	public HttpClient setKeepAlive(boolean b) {
-		httpClient.setKeepAlive(b);
-		return this;
-	}
-
-	@Override
-	public boolean isKeepAlive() {
-		return httpClient.isKeepAlive();
-	}
-
-	@Override
-	public HttpClient setPipelining(boolean b) {
-		httpClient.setPipelining(b);
-		return this;
-	}
-
-	@Override
-	public boolean isPipelining() {
-		return httpClient.isPipelining();
-	}
-
-	@Override
-	public HttpClient setPort(int i) {
-		httpClient.setPort(i);
-		return this;
-	}
-
-	@Override
-	public int getPort() {
-		return httpClient.getPort();
-	}
-
-	@Override
-	public HttpClient setHost(String s) {
-		httpClient.setHost(s);
-		return this;
-	}
-
-	@Override
-	public String getHost() {
-		return httpClient.getHost();
-	}
-
-	@Override
-	public HttpClient connectWebsocket(String s, Handler<WebSocket> handler) {
-		httpClient.connectWebsocket(s, handler);
-		return this;
-	}
-
-	@Override
-	public HttpClient connectWebsocket(String s, WebSocketVersion webSocketVersion, Handler<WebSocket> handler) {
-		httpClient.connectWebsocket(s, webSocketVersion, handler);
-		return this;
-	}
-
-	@Override
-	public HttpClient connectWebsocket(String s, WebSocketVersion webSocketVersion, MultiMap multiMap, Handler<WebSocket> handler) {
-		httpClient.connectWebsocket(s, webSocketVersion, multiMap, handler);
-		return this;
-	}
-
-	@Override
-	public HttpClient connectWebsocket(String s, WebSocketVersion webSocketVersion, MultiMap multiMap, Set<String> set, Handler<WebSocket> handler) {
-		httpClient.connectWebsocket(s, webSocketVersion, multiMap, set, handler);
-		return this;
-	}
-
-	@Override
 	public HttpClient getNow(String s, Handler<HttpClientResponse> handler) {
 		if (httpClient == null) {
 			handler.handle(new ErrorHttpClientResponse(500, ""));
 			return this;
 		}
 		httpClient.getNow(s, handler);
-		return this;
-	}
-
-	@Override
-	public HttpClient getNow(String s, MultiMap multiMap, Handler<HttpClientResponse> handler) {
-		if (httpClient == null) {
-			handler.handle(new ErrorHttpClientResponse(500, ""));
-			return this;
-		}
-		httpClient.getNow(s, multiMap, handler);
 		return this;
 	}
 
@@ -249,256 +865,8 @@ public class ResilientHttpClient implements HttpClient {
 	}
 
 	@Override
-	public HttpClientRequest trace(String s, Handler<HttpClientResponse> handler) {
-		if (httpClient == null) {
-			handler.handle(new ErrorHttpClientResponse(500, ""));
-			return null;
-		}
-		final HttpClientRequest req = httpClient.trace(s, handler);
-		preConfigureRequest(handler, req);
-		return req;
-	}
-
-	@Override
-	public HttpClientRequest connect(String s, Handler<HttpClientResponse> handler) {
-		if (httpClient == null) {
-			handler.handle(new ErrorHttpClientResponse(500, ""));
-			return null;
-		}
-		final HttpClientRequest req = httpClient.connect(s, handler);
-		preConfigureRequest(handler, req);
-		return req;
-	}
-
-	@Override
-	public HttpClientRequest patch(String s, Handler<HttpClientResponse> handler) {
-		if (httpClient == null) {
-			handler.handle(new ErrorHttpClientResponse(500, ""));
-			return null;
-		}
-		final HttpClientRequest req = httpClient.patch(s, handler);
-		preConfigureRequest(handler, req);
-		return req;
-	}
-
-	@Override
-	public HttpClientRequest request(String s, String s1, final Handler<HttpClientResponse> handler) {
-		if (httpClient == null) {
-			handler.handle(new ErrorHttpClientResponse(500, ""));
-			return null;
-		}
-		final HttpClientRequest req = httpClient.request(s, s1, handler);
-		preConfigureRequest(handler, req);
-		return req;
-	}
-
-	@Override
 	public void close() {
 		httpClient.close();
-	}
-
-	@Override
-	public HttpClient setVerifyHost(boolean b) {
-		httpClient.setVerifyHost(b);
-		return this;
-	}
-
-	@Override
-	public boolean isVerifyHost() {
-		return httpClient.isVerifyHost();
-	}
-
-	@Override
-	public HttpClient setConnectTimeout(int i) {
-		httpClient.setConnectTimeout(i);
-		return this;
-	}
-
-	@Override
-	public int getConnectTimeout() {
-		return httpClient.getConnectTimeout();
-	}
-
-	@Override
-	public HttpClient setTryUseCompression(boolean b) {
-		httpClient.setTryUseCompression(b);
-		return this;
-	}
-
-	@Override
-	public boolean getTryUseCompression() {
-		return httpClient.getTryUseCompression();
-	}
-
-	@Override
-	public HttpClient setMaxWebSocketFrameSize(int i) {
-		httpClient.setMaxWebSocketFrameSize(i);
-		return this;
-	}
-
-	@Override
-	public int getMaxWebSocketFrameSize() {
-		return httpClient.getMaxWebSocketFrameSize();
-	}
-
-	@Override
-	public HttpClient setSendBufferSize(int i) {
-		httpClient.setSendBufferSize(i);
-		return this;
-	}
-
-	@Override
-	public HttpClient setReceiveBufferSize(int i) {
-		httpClient.setReceiveBufferSize(i);
-		return this;
-	}
-
-	@Override
-	public HttpClient setReuseAddress(boolean b) {
-		httpClient.setReuseAddress(b);
-		return this;
-	}
-
-	@Override
-	public HttpClient setTrafficClass(int i) {
-		httpClient.setTrafficClass(i);
-		return this;
-	}
-
-	@Override
-	public int getSendBufferSize() {
-		return httpClient.getSendBufferSize();
-	}
-
-	@Override
-	public int getReceiveBufferSize() {
-		return httpClient.getReceiveBufferSize();
-	}
-
-	@Override
-	public boolean isReuseAddress() {
-		return httpClient.isReuseAddress();
-	}
-
-	@Override
-	public int getTrafficClass() {
-		return httpClient.getTrafficClass();
-	}
-
-	@Override
-	public HttpClient setTrustAll(boolean b) {
-		httpClient.setTrustAll(b);
-		return this;
-	}
-
-	@Override
-	public boolean isTrustAll() {
-		return httpClient.isTrustAll();
-	}
-
-	@Override
-	public HttpClient setSSL(boolean b) {
-		httpClient.setSSL(b);
-		return this;
-	}
-
-	@Override
-	public boolean isSSL() {
-		return httpClient.isSSL();
-	}
-
-	@Override
-	public HttpClient setSSLContext(SSLContext sslContext) {
-		httpClient.setSSLContext(sslContext);
-		return this;
-	}
-
-	@Override
-	public HttpClient setKeyStorePath(String s) {
-		httpClient.setKeyStorePath(s);
-		return this;
-	}
-
-	@Override
-	public String getKeyStorePath() {
-		return httpClient.getKeyStorePath();
-	}
-
-	@Override
-	public HttpClient setKeyStorePassword(String s) {
-		httpClient.setKeyStorePassword(s);
-		return this;
-	}
-
-	@Override
-	public String getKeyStorePassword() {
-		return httpClient.getKeyStorePassword();
-	}
-
-	@Override
-	public HttpClient setTrustStorePath(String s) {
-		httpClient.setTrustStorePath(s);
-		return this;
-	}
-
-	@Override
-	public String getTrustStorePath() {
-		return httpClient.getTrustStorePath();
-	}
-
-	@Override
-	public HttpClient setTrustStorePassword(String s) {
-		httpClient.setTrustStorePassword(s);
-		return this;
-	}
-
-	@Override
-	public String getTrustStorePassword() {
-		return httpClient.getTrustStorePassword();
-	}
-
-	@Override
-	public HttpClient setTCPNoDelay(boolean b) {
-		httpClient.setTCPNoDelay(b);
-		return this;
-	}
-
-	@Override
-	public HttpClient setTCPKeepAlive(boolean b) {
-		httpClient.setTCPKeepAlive(b);
-		return this;
-	}
-
-	@Override
-	public HttpClient setSoLinger(int i) {
-		httpClient.setSoLinger(i);
-		return this;
-	}
-
-	@Override
-	public HttpClient setUsePooledBuffers(boolean b) {
-		httpClient.setUsePooledBuffers(b);
-		return this;
-	}
-
-	@Override
-	public boolean isTCPNoDelay() {
-		return httpClient.isTCPNoDelay();
-	}
-
-	@Override
-	public boolean isTCPKeepAlive() {
-		return httpClient.isTCPKeepAlive();
-	}
-
-	@Override
-	public int getSoLinger() {
-		return httpClient.getSoLinger();
-	}
-
-	@Override
-	public boolean isUsePooledBuffers() {
-		return httpClient.isUsePooledBuffers();
 	}
 
 	public HttpClient setHalfOpenHandler(Handler<HalfOpenResult> halfOpenHandler) {
@@ -514,8 +882,10 @@ public class ResilientHttpClient implements HttpClient {
 				if (errorsCount.incrementAndGet() > threshold) {
 					openCircuit();
 				}
-				handler.handle(new ErrorHttpClientResponse(500,
-						((throwable != null && throwable.getMessage() != null) ? throwable.getMessage() : "")));
+				if (handler != null) {
+					handler.handle(new ErrorHttpClientResponse(500,
+							((throwable != null && throwable.getMessage() != null) ? throwable.getMessage() : "")));
+				}
 			}
 		});
 		req.setTimeout(timeout);
@@ -538,22 +908,24 @@ public class ResilientHttpClient implements HttpClient {
 
 	private void reconfigure() {
 		final int port = (uri.getPort() > 0) ? uri.getPort() : ("https".equals(uri.getScheme()) ? 443 : 80);
-		this.httpClient = vertx.createHttpClient()
-				.setHost(uri.getHost())
-				.setPort(port)
+		HttpClientOptions options = new HttpClientOptions()
+				.setDefaultHost(uri.getHost())
+				.setDefaultPort(port)
 				.setMaxPoolSize(16)
-				.setSSL("https".equals(uri.getScheme()))
+				.setSsl("https".equals(uri.getScheme()))
 				.setKeepAlive(keepAlive)
 				.setConnectTimeout(timeout);
-		this.httpClient.exceptionHandler(new Handler<Throwable>() {
-			@Override
-			public void handle(Throwable throwable) {
-				log.error("SwiftHttpClient : global error", throwable);
-				if (errorsCount.incrementAndGet() > threshold) {
-					openCircuit();
-				}
-			}
-		});
+		this.httpClient = vertx.createHttpClient(options);
+
+//		this.httpClient.exceptionHandler(new Handler<Throwable>() {
+//			@Override
+//			public void handle(Throwable throwable) {
+//				log.error("SwiftHttpClient : global error", throwable);
+//				if (errorsCount.incrementAndGet() > threshold) {
+//					openCircuit();
+//				}
+//			}
+//		});
 		log.info("SwiftHttpClient : half-close circuit");
 		if (halfOpenHandler != null) {
 			halfOpenHandler.handle(new HalfOpenResult(this));

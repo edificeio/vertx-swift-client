@@ -1,10 +1,13 @@
 package fr.wseduc.swift.utils;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.MultiMap;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.http.HttpClientResponse;
-import org.vertx.java.core.net.NetSocket;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpFrame;
+import io.vertx.core.http.HttpVersion;
+import io.vertx.core.net.NetSocket;
 
 import java.util.List;
 
@@ -39,6 +42,21 @@ public class ErrorHttpClientResponse implements HttpClientResponse {
 	}
 
 	@Override
+	public String getHeader(String headerName) {
+		return null;
+	}
+
+	@Override
+	public String getHeader(CharSequence headerName) {
+		return null;
+	}
+
+	@Override
+	public String getTrailer(String trailerName) {
+		return null;
+	}
+
+	@Override
 	public MultiMap trailers() {
 		return null;
 	}
@@ -54,7 +72,17 @@ public class ErrorHttpClientResponse implements HttpClientResponse {
 	}
 
 	@Override
+	public HttpClientResponse customFrameHandler(Handler<HttpFrame> handler) {
+		return null;
+	}
+
+	@Override
 	public NetSocket netSocket() {
+		return null;
+	}
+
+	@Override
+	public HttpClientRequest request() {
 		return null;
 	}
 
@@ -64,7 +92,12 @@ public class ErrorHttpClientResponse implements HttpClientResponse {
 	}
 
 	@Override
-	public HttpClientResponse dataHandler(Handler<Buffer> handler) {
+	public HttpVersion version() {
+		return null;
+	}
+
+	@Override
+	public HttpClientResponse handler(Handler<Buffer> handler) {
 		return null;
 	}
 
