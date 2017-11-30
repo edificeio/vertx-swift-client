@@ -21,17 +21,18 @@ import fr.wseduc.swift.exception.StorageException;
 import fr.wseduc.swift.storage.DefaultAsyncResult;
 import fr.wseduc.swift.storage.StorageObject;
 import fr.wseduc.swift.utils.*;
+import io.vertx.core.file.OpenOptions;
 import org.apache.james.mime4j.codec.DecodeMonitor;
 import org.apache.james.mime4j.codec.DecoderUtil;
 import org.apache.james.mime4j.codec.EncoderUtil;
-import org.vertx.java.core.*;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.file.AsyncFile;
-import org.vertx.java.core.http.*;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.java.core.logging.impl.LoggerFactory;
-import org.vertx.java.core.streams.Pump;
+import io.vertx.core.*;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.file.AsyncFile;
+import io.vertx.core.http.*;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.streams.Pump;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,11 +79,11 @@ public class SwiftClient {
 		this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay);
 	}
 
-	public void authenticate(final String user, final String key, final AsyncResultHandler<Void> handler) {
+	public void authenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
 		httpClient.setHalfOpenHandler(new Handler<ResilientHttpClient.HalfOpenResult>() {
 			@Override
 			public void handle(final ResilientHttpClient.HalfOpenResult halfOpenResult) {
-				doAuthenticate(user, key, new AsyncResultHandler<Void>() {
+				doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
 					@Override
 					public void handle(AsyncResult<Void> ar) {
 						if (ar.succeeded()) {
@@ -97,7 +98,7 @@ public class SwiftClient {
 		doAuthenticate(user, key, handler);
 	}
 
-	private void doAuthenticate(final String user, final String key, final AsyncResultHandler<Void> handler) {
+	private void doAuthenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
 		HttpClientRequest req = httpClient.get("/auth/v1.0", new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(HttpClientResponse response) {
@@ -112,7 +113,7 @@ public class SwiftClient {
 						tokenPeriodic = vertx.setPeriodic(tokenLife, new Handler<Long>() {
 							@Override
 							public void handle(Long aLong) {
-								doAuthenticate(user, key, new AsyncResultHandler<Void>() {
+								doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
 									@Override
 									public void handle(AsyncResult<Void> voidAsyncResult) {
 										if (voidAsyncResult.failed()) {
@@ -135,11 +136,11 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void headContainer(AsyncResultHandler<JsonObject> handler) {
+	public void headContainer(Handler<AsyncResult<JsonObject>> handler) {
 		headContainer(defaultContainer, handler);
 	}
 
-	public void headContainer(String container, final AsyncResultHandler<JsonObject> handler) {
+	public void headContainer(String container, final Handler<AsyncResult<JsonObject>> handler) {
 		HttpClientRequest req = httpClient.head(basePath + "/" + container, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(final HttpClientResponse response) {
@@ -147,11 +148,11 @@ public class SwiftClient {
 					try {
 						final JsonObject res = new JsonObject();
 						if (response.headers().get("X-Container-Object-Count") != null) {
-							res.putNumber("X-Container-Object-Count", Long.parseLong(response.headers()
+							res.put("X-Container-Object-Count", Long.parseLong(response.headers()
 									.get("X-Container-Object-Count")));
 						}
 						if (response.headers().get("X-Container-Bytes-Used") != null) {
-							res.putNumber("X-Container-Bytes-Used", Long.parseLong(response.headers()
+							res.put("X-Container-Bytes-Used", Long.parseLong(response.headers()
 									.get("X-Container-Bytes-Used")));
 						}
 						handler.handle(new DefaultAsyncResult<>(res));
@@ -178,7 +179,7 @@ public class SwiftClient {
 
 	public void uploadFile(final HttpServerRequest request, final String container, final Long maxSize,
 			final Handler<JsonObject> handler) {
-		request.expectMultiPart(true);
+		request.setExpectMultipart(true);
 		request.uploadHandler(new Handler<HttpServerFileUpload>() {
 			@Override
 			public void handle(final HttpServerFileUpload upload) {
@@ -186,8 +187,8 @@ public class SwiftClient {
 				final AtomicLong size = new AtomicLong(0l);
 				final JsonObject metadata = FileUtils.metadata(upload);
 				if (maxSize != null && maxSize < metadata.getLong("size", 0l)) {
-					handler.handle(new JsonObject().putString("status", "error")
-							.putString("message", "file.too.large"));
+					handler.handle(new JsonObject().put("status", "error")
+							.put("message", "file.too.large"));
 					return;
 				}
 				final String id = UUID.randomUUID().toString();
@@ -197,13 +198,13 @@ public class SwiftClient {
 							public void handle(HttpClientResponse response) {
 								if (response.statusCode() == 201) {
 									if (metadata.getLong("size") == 0l) {
-										metadata.putNumber("size", size.get());
+										metadata.put("size", size.get());
 									}
-									handler.handle(new JsonObject().putString("_id", id)
-											.putString("status", "ok")
-											.putObject("metadata", metadata));
+									handler.handle(new JsonObject().put("_id", id)
+											.put("status", "ok")
+											.put("metadata", metadata));
 								} else {
-									handler.handle(new JsonObject().putString("status", "error"));
+									handler.handle(new JsonObject().put("status", "error"));
 								}
 							}
 						});
@@ -218,14 +219,14 @@ public class SwiftClient {
 					req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
 				}
 				req.setChunked(true);
-				upload.dataHandler(new Handler<Buffer>() {
+				upload.handler(new Handler<Buffer>() {
 					public void handle(Buffer data) {
 						req.write(data);
 						size.addAndGet(data.length());
 					}
 				});
-				upload.endHandler(new VoidHandler() {
-					public void handle() {
+				upload.endHandler(new Handler<Void>() {
+					public void handle(Void v) {
 						req.end();
 					}
 				});
@@ -275,7 +276,7 @@ public class SwiftClient {
 				}
 				if (response.statusCode() == 200) {
 					resp.setChunked(true);
-					response.dataHandler(new Handler<Buffer>() {
+					response.handler(new Handler<Buffer>() {
 						@Override
 						public void handle(Buffer event) {
 							resp.write(event);
@@ -305,18 +306,18 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void readFile(final String id, final AsyncResultHandler<StorageObject> handler) {
+	public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
 		readFile(id, defaultContainer, handler);
 	}
 
-	public void readFile(final String id, String container, final AsyncResultHandler<StorageObject> handler) {
+	public void readFile(final String id, String container, final Handler<AsyncResult<StorageObject>> handler) {
 		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(final HttpClientResponse response) {
 				response.pause();
 				if (response.statusCode() == 200) {
-					final Buffer buffer = new Buffer();
-					response.dataHandler(new Handler<Buffer>() {
+					final Buffer buffer = Buffer.buffer();
+					response.handler(new Handler<Buffer>() {
 						@Override
 						public void handle(Buffer event) {
 							buffer.appendBuffer(event);
@@ -354,11 +355,11 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void writeFile(StorageObject object, final AsyncResultHandler<String> handler) {
+	public void writeFile(StorageObject object, final Handler<AsyncResult<String>> handler) {
 		writeFile(object, defaultContainer, handler);
 	}
 
-	public void writeFile(StorageObject object, String container, final AsyncResultHandler<String> handler) {
+	public void writeFile(StorageObject object, String container, final Handler<AsyncResult<String>> handler) {
 		final String id = (object.getId() != null) ? object.getId() : UUID.randomUUID().toString();
 		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
 				new Handler<HttpClientResponse>() {
@@ -384,11 +385,11 @@ public class SwiftClient {
 		req.end(object.getBuffer());
 	}
 
-	public void deleteFile(String id, final AsyncResultHandler<Void> handler) {
+	public void deleteFile(String id, final Handler<AsyncResult<Void>> handler) {
 		deleteFile(id, defaultContainer, handler);
 	}
 
-	public void deleteFile(String id, String container, final AsyncResultHandler<Void> handler) {
+	public void deleteFile(String id, String container, final Handler<AsyncResult<Void>> handler) {
 		final HttpClientRequest req = httpClient.delete(basePath + "/" + container + "/" + id,
 				new Handler<HttpClientResponse>() {
 					@Override
@@ -405,11 +406,11 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void copyFile(String from, final AsyncResultHandler<String> handler) {
+	public void copyFile(String from, final Handler<AsyncResult<String>> handler) {
 		copyFile(from, defaultContainer, handler);
 	}
 
-	public void copyFile(String from, String container, final AsyncResultHandler<String> handler) {
+	public void copyFile(String from, String container, final Handler<AsyncResult<String>> handler) {
 		final String id = UUID.randomUUID().toString();
 		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
 				new Handler<HttpClientResponse>() {
@@ -429,18 +430,18 @@ public class SwiftClient {
 		req.end();
 	}
 
-	public void writeToFileSystem(String id, String destination, AsyncResultHandler<String> handler) {
+	public void writeToFileSystem(String id, String destination, Handler<AsyncResult<String>> handler) {
 		writeToFileSystem(id, destination, defaultContainer, handler);
 	}
 
 	public void writeToFileSystem(String id, final String destination, String container,
-			final AsyncResultHandler<String> handler) {
+			final Handler<AsyncResult<String>> handler) {
 		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
 			@Override
 			public void handle(final HttpClientResponse response) {
 				response.pause();
 				if (response.statusCode() == 200) {
-					vertx.fileSystem().open(destination, new AsyncResultHandler<AsyncFile>() {
+					vertx.fileSystem().open(destination, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
 						public void handle(final AsyncResult<AsyncFile> ar) {
 							if (ar.succeeded()) {
 								response.endHandler(new Handler<Void>() {
@@ -450,7 +451,7 @@ public class SwiftClient {
 										handler.handle(new DefaultAsyncResult<>(destination));
 									}
 								});
-								Pump p = Pump.createPump(response, ar.result());
+								Pump p = Pump.pump(response, ar.result());
 								p.start();
 
 								response.resume();
@@ -473,14 +474,14 @@ public class SwiftClient {
 			final Handler<JsonObject> handler) {
 		if (id == null || id.trim().isEmpty() || path == null ||
 				path.trim().isEmpty() || path.endsWith(File.separator)) {
-			handler.handle(new JsonObject().putString("status", "error")
-					.putString("message", "invalid.parameter"));
+			handler.handle(new JsonObject().put("status", "error")
+					.put("message", "invalid.parameter"));
 			return;
 		}
 		final String filename = path.contains(File.separator) ?
 				path.substring(path.lastIndexOf(File.separator) + 1) : path;
 		final String contentType = getContentType(path);
-		vertx.fileSystem().open(path, new Handler<AsyncResult<AsyncFile>>() {
+		vertx.fileSystem().open(path, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
 			@Override
 			public void handle(AsyncResult<AsyncFile> asyncFileAsyncResult) {
 				if (asyncFileAsyncResult.succeeded()) {
@@ -490,10 +491,10 @@ public class SwiftClient {
 								@Override
 								public void handle(HttpClientResponse response) {
 									if (response.statusCode() == 201) {
-										handler.handle(new JsonObject().putString("_id", id)
-												.putString("status", "ok"));
+										handler.handle(new JsonObject().put("_id", id)
+												.put("status", "ok"));
 									} else {
-										handler.handle(new JsonObject().putString("status", "error"));
+										handler.handle(new JsonObject().put("status", "error"));
 									}
 								}
 							});
@@ -508,7 +509,7 @@ public class SwiftClient {
 						req.putHeader("X-Object-Meta-Filename", filename);
 					}
 					req.setChunked(true);
-					Pump p = Pump.createPump(asyncFileAsyncResult.result(), req);
+					Pump p = Pump.pump(asyncFileAsyncResult.result(), req);
 					asyncFileAsyncResult.result().endHandler(new Handler<Void>() {
 						@Override
 						public void handle(Void aVoid) {
@@ -517,8 +518,8 @@ public class SwiftClient {
 					});
 					p.start();
 				} else {
-					handler.handle(new JsonObject().putString("status", "error")
-							.putString("message", asyncFileAsyncResult.cause().getMessage()));
+					handler.handle(new JsonObject().put("status", "error")
+							.put("message", asyncFileAsyncResult.cause().getMessage()));
 				}
 			}
 		});
