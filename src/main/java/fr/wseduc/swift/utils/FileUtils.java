@@ -19,6 +19,8 @@ package fr.wseduc.swift.utils;
 import org.vertx.java.core.http.HttpServerFileUpload;
 import org.vertx.java.core.json.JsonObject;
 
+import java.text.Normalizer;
+
 public class FileUtils {
 
 	public static String getNameWithExtension(String downloadName, JsonObject metadata) {
@@ -39,7 +41,7 @@ public class FileUtils {
 				name += fExt;
 			}
 		}
-		return name;
+		return (name != null) ? Normalizer.normalize(name, Normalizer.Form.NFC) : name;
 	}
 
 	public static JsonObject metadata(HttpServerFileUpload upload) {
