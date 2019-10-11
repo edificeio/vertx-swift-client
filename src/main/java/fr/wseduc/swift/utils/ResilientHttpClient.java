@@ -4,9 +4,11 @@ import io.vertx.core.*;
 import io.vertx.core.http.*;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -206,6 +208,31 @@ public class ResilientHttpClient implements HttpClient {
 	}
 
 	@Override
+	public void webSocket(int port, String host, String requestURI, Handler<AsyncResult<WebSocket>> handler) {
+		httpClient.webSocket(port, host, requestURI, handler);
+	}
+
+	@Override
+	public void webSocket(String host, String requestURI, Handler<AsyncResult<WebSocket>> handler) {
+		httpClient.webSocket(host, requestURI, handler);
+	}
+
+	@Override
+	public void webSocket(String requestURI, Handler<AsyncResult<WebSocket>> handler) {
+		httpClient.webSocket(requestURI, handler);
+	}
+
+	@Override
+	public void webSocket(WebSocketConnectOptions options, Handler<AsyncResult<WebSocket>> handler) {
+		httpClient.webSocket(options, handler);
+	}
+
+	@Override
+	public void webSocketAbs(String url, MultiMap headers, WebsocketVersion version, List<String> subProtocols, Handler<AsyncResult<WebSocket>> handler) {
+		httpClient.webSocketAbs(url, headers, version, subProtocols, handler);
+	}
+
+	@Override
 	public ReadStream<WebSocket> websocketStream(RequestOptions options) {
 		return websocketStream(options, null);
 	}
@@ -292,6 +319,11 @@ public class ResilientHttpClient implements HttpClient {
 	}
 
 	@Override
+	public HttpClient connectionHandler(Handler<HttpConnection> handler) {
+		return httpClient.connectionHandler(handler);
+	}
+
+	@Override
 	public HttpClientRequest requestAbs(HttpMethod method, String absoluteURI, Handler<HttpClientResponse> handler) {
 		if (httpClient == null) {
 			handler.handle(new ErrorHttpClientResponse(500, ""));
@@ -300,6 +332,11 @@ public class ResilientHttpClient implements HttpClient {
 		final HttpClientRequest req = httpClient.requestAbs(method, absoluteURI, handler);
 		preConfigureRequest(handler, req);
 		return req;
+	}
+
+	@Override
+	public HttpClientRequest requestAbs(HttpMethod method, SocketAddress serverAddress, String absoluteURI, Handler<HttpClientResponse> responseHandler) {
+		return httpClient.requestAbs(method, serverAddress, absoluteURI, responseHandler);
 	}
 
 	@Override
@@ -321,6 +358,11 @@ public class ResilientHttpClient implements HttpClient {
 		final HttpClientRequest req = httpClient.request(method, port, host, requestURI, handler);
 		preConfigureRequest(handler, req);
 		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, SocketAddress serverAddress, int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
+		return httpClient.request(method, serverAddress, port, host, requestURI, responseHandler);
 	}
 
 	@Override
@@ -366,6 +408,11 @@ public class ResilientHttpClient implements HttpClient {
 	}
 
 	@Override
+	public HttpClientRequest requestAbs(HttpMethod method, SocketAddress serverAddress, String absoluteURI) {
+		return httpClient.requestAbs(method, serverAddress, absoluteURI);
+	}
+
+	@Override
 	public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI) {
 		if (httpClient == null) {
 			return null;
@@ -373,6 +420,11 @@ public class ResilientHttpClient implements HttpClient {
 		final HttpClientRequest req = httpClient.request(method, port, host, requestURI);
 		preConfigureRequest(null, req);
 		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, SocketAddress serverAddress, int port, String host, String requestURI) {
+		return httpClient.request(method, serverAddress, port, host, requestURI);
 	}
 
 	@Override
@@ -384,6 +436,16 @@ public class ResilientHttpClient implements HttpClient {
 		final HttpClientRequest req = httpClient.request(method, options, responseHandler);
 		preConfigureRequest(responseHandler, req);
 		return req;
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, SocketAddress serverAddress, RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+		return httpClient.request(method, serverAddress, options, responseHandler);
+	}
+
+	@Override
+	public HttpClientRequest request(HttpMethod method, SocketAddress serverAddress, RequestOptions options) {
+		return httpClient.request(method, serverAddress, options);
 	}
 
 	@Override

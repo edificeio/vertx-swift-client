@@ -3,10 +3,7 @@ package fr.wseduc.swift.utils;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpFrame;
-import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.*;
 import io.vertx.core.net.NetSocket;
 
 import java.util.List;
@@ -87,6 +84,11 @@ public class ErrorHttpClientResponse implements HttpClientResponse {
 	}
 
 	@Override
+	public HttpClientResponse streamPriorityHandler(Handler<StreamPriority> handler) {
+		return null;
+	}
+
+	@Override
 	public HttpClientResponse endHandler(Handler<Void> handler) {
 		return null;
 	}
@@ -103,6 +105,11 @@ public class ErrorHttpClientResponse implements HttpClientResponse {
 
 	@Override
 	public HttpClientResponse pause() {
+		return null;
+	}
+
+	@Override
+	public HttpClientResponse fetch(long amount) {
 		return null;
 	}
 
