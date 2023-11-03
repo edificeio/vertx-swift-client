@@ -17,11 +17,15 @@
 package fr.wseduc.swift.utils;
 
 import io.vertx.core.http.HttpServerFileUpload;
+import io.vertx.core.impl.logging.Logger;
+import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 
 import java.text.Normalizer;
 
 public class FileUtils {
+
+	public static final Logger log = LoggerFactory.getLogger(FileUtils.class);
 
 	public static String getNameWithExtension(String downloadName, JsonObject metadata) {
 		String name = downloadName;

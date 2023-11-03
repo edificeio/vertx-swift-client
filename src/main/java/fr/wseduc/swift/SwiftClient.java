@@ -44,503 +44,485 @@ import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.vertx.core.http.HttpMethod.*;
+
 public class SwiftClient {
 
-	private static final Logger log = LoggerFactory.getLogger(SwiftClient.class);
-	private final Vertx vertx;
-	private final ResilientHttpClient httpClient;
-	private final String defaultContainer;
-	private String basePath;
-	private String token;
-	private long tokenLife;
-	private long tokenPeriodic = 0l;
+  private static final Logger log = LoggerFactory.getLogger(SwiftClient.class);
+  private final Vertx vertx;
+  private final ResilientHttpClient httpClient;
+  private final String defaultContainer;
+  private String basePath;
+  private String token;
+  private long tokenLife;
+  private long tokenPeriodic = 0l;
 
-	public SwiftClient(Vertx vertx, URI uri) {
-		this(vertx, uri, "documents");
-	}
+  public SwiftClient(Vertx vertx, URI uri) {
+    this(vertx, uri, "documents");
+  }
 
-	public SwiftClient(Vertx vertx, URI uri, String container) {
-		this(vertx, uri, container, 23 * 3600 * 1000);
-	}
+  public SwiftClient(Vertx vertx, URI uri, String container) {
+    this(vertx, uri, container, 23 * 3600 * 1000);
+  }
 
-	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife) {
-		this(vertx, uri, container, tokenLife, false);
-	}
+  public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife) {
+    this(vertx, uri, container, tokenLife, false);
+  }
 
-	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive) {
-		this(vertx, uri, container, tokenLife, keepAlive, 10000, 100, 10000l);
-	}
+  public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive) {
+    this(vertx, uri, container, tokenLife, keepAlive, 10000, 100, 10000l);
+  }
 
-	public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive,
-					   int timeout, int threshold, long openDelay) {
-		this.vertx = vertx;
-		this.defaultContainer = container;
-		this.tokenLife = tokenLife;
-		this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay);
-	}
+  public SwiftClient(Vertx vertx, URI uri, String container, long tokenLife, boolean keepAlive,
+                     int timeout, int threshold, long openDelay) {
+    this.vertx = vertx;
+    this.defaultContainer = container;
+    this.tokenLife = tokenLife;
+    this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay);
+  }
 
-	public void authenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
-		httpClient.setHalfOpenHandler(new Handler<ResilientHttpClient.HalfOpenResult>() {
-			@Override
-			public void handle(final ResilientHttpClient.HalfOpenResult halfOpenResult) {
-				doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
-					@Override
-					public void handle(AsyncResult<Void> ar) {
-						if (ar.succeeded()) {
-							halfOpenResult.success();
-						} else {
-							halfOpenResult.fail();
-						}
-					}
-				});
-			}
-		});
-		doAuthenticate(user, key, handler);
-	}
+  public void authenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
+    httpClient.setHalfOpenHandler(new Handler<ResilientHttpClient.HalfOpenResult>() {
+      @Override
+      public void handle(final ResilientHttpClient.HalfOpenResult halfOpenResult) {
+        doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
+          @Override
+          public void handle(AsyncResult<Void> ar) {
+            if (ar.succeeded()) {
+              halfOpenResult.success();
+            } else {
+              halfOpenResult.fail();
+            }
+          }
+        });
+      }
+    });
+    doAuthenticate(user, key, handler);
+  }
 
-	private void doAuthenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
-		HttpClientRequest req = httpClient.get("/auth/v1.0", new Handler<HttpClientResponse>() {
-			@Override
-			public void handle(HttpClientResponse response) {
-				if (response.statusCode() == 200 || response.statusCode() == 204) {
-					token = response.headers().get("X-Auth-Token");
-					try {
-						basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
-						handler.handle(new DefaultAsyncResult<>((Void) null));
-						if (tokenPeriodic != 0l) {
-							vertx.cancelTimer(tokenPeriodic);
-						}
-						tokenPeriodic = vertx.setPeriodic(tokenLife, new Handler<Long>() {
-							@Override
-							public void handle(Long aLong) {
-								doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
-									@Override
-									public void handle(AsyncResult<Void> voidAsyncResult) {
-										if (voidAsyncResult.failed()) {
-											log.error("Periodic authentication error.", voidAsyncResult.cause());
-										}
-									}
-								});
-							}
-						});
-					} catch (URISyntaxException e) {
-						handler.handle(new DefaultAsyncResult<Void>(new AuthenticationException(e.getMessage())));
-					}
-				} else {
-					handler.handle(new DefaultAsyncResult<Void>(new AuthenticationException(response.statusMessage())));
-				}
-			}
-		});
-		req.putHeader("X-Auth-User", user);
-		req.putHeader("X-Auth-Key", key);
-		req.end();
-	}
+  private void doAuthenticate(final String user, final String key, final Handler<AsyncResult<Void>> handler) {
+    httpClient.request(GET, "/auth/v1.0")
+        .map(req -> req.putHeader("X-Auth-User", user).putHeader("X-Auth-Key", key))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+          if (response.statusCode() == 200 || response.statusCode() == 204) {
+            token = response.headers().get("X-Auth-Token");
+            try {
+              basePath = new URI(response.headers().get("X-Storage-Url")).getPath();
+              handler.handle(new DefaultAsyncResult<>((Void) null));
+              if (tokenPeriodic != 0L) {
+                vertx.cancelTimer(tokenPeriodic);
+              }
+              tokenPeriodic = vertx.setPeriodic(tokenLife, new Handler<Long>() {
+                @Override
+                public void handle(Long aLong) {
+                  doAuthenticate(user, key, new Handler<AsyncResult<Void>>() {
+                    @Override
+                    public void handle(AsyncResult<Void> voidAsyncResult) {
+                      if (voidAsyncResult.failed()) {
+                        log.error("Periodic authentication error.", voidAsyncResult.cause());
+                      }
+                    }
+                  });
+                }
+              });
+            } catch (URISyntaxException e) {
+              handler.handle(new DefaultAsyncResult<>(new AuthenticationException(e.getMessage())));
+            }
+          } else {
+            handler.handle(new DefaultAsyncResult<>(new AuthenticationException(response.statusMessage())));
+          }
+        })
+        .onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void headContainer(Handler<AsyncResult<JsonObject>> handler) {
-		headContainer(defaultContainer, handler);
-	}
+  public void headContainer(Handler<AsyncResult<JsonObject>> handler) {
+    headContainer(defaultContainer, handler);
+  }
 
-	public void headContainer(String container, final Handler<AsyncResult<JsonObject>> handler) {
-		HttpClientRequest req = httpClient.head(basePath + "/" + container, new Handler<HttpClientResponse>() {
-			@Override
-			public void handle(final HttpClientResponse response) {
-				if (response.statusCode() == 204) {
-					try {
-						final JsonObject res = new JsonObject();
-						if (response.headers().get("X-Container-Object-Count") != null) {
-							res.put("X-Container-Object-Count", Long.parseLong(response.headers()
-									.get("X-Container-Object-Count")));
-						}
-						if (response.headers().get("X-Container-Bytes-Used") != null) {
-							res.put("X-Container-Bytes-Used", Long.parseLong(response.headers()
-									.get("X-Container-Bytes-Used")));
-						}
-						handler.handle(new DefaultAsyncResult<>(res));
-					} catch (NumberFormatException e) {
-						handler.handle(new DefaultAsyncResult<JsonObject>(e));
-					}
-				} else {
-					handler.handle(new DefaultAsyncResult<JsonObject>(new StorageException(response.statusMessage())));
-				}
-			}
-		});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.end();
-	}
+  public void headContainer(String container, final Handler<AsyncResult<JsonObject>> handler) {
+    httpClient.request(HEAD, basePath + "/" + container)
+        .map(req -> req.putHeader("X-Auth-Token", token))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+          if (response.statusCode() == 204) {
+            try {
+              final JsonObject res = new JsonObject();
+              if (response.headers().get("X-Container-Object-Count") != null) {
+                res.put("X-Container-Object-Count", Long.parseLong(response.headers()
+                    .get("X-Container-Object-Count")));
+              }
+              if (response.headers().get("X-Container-Bytes-Used") != null) {
+                res.put("X-Container-Bytes-Used", Long.parseLong(response.headers()
+                    .get("X-Container-Bytes-Used")));
+              }
+              handler.handle(new DefaultAsyncResult<>(res));
+            } catch (NumberFormatException e) {
+              handler.handle(new DefaultAsyncResult<>(e));
+            }
+          } else {
+            handler.handle(new DefaultAsyncResult<>(new StorageException(response.statusMessage())));
+          }
+        })
+        .onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void uploadFile(HttpServerRequest request, Handler<JsonObject> handler) {
-		uploadFile(request, defaultContainer, null, handler);
-	}
+  public void uploadFile(HttpServerRequest request, Handler<JsonObject> handler) {
+    uploadFile(request, defaultContainer, null, handler);
+  }
 
-	public void uploadFile(HttpServerRequest request, Long maxSize, Handler<JsonObject> handler) {
-		uploadFile(request, defaultContainer, maxSize, handler);
-	}
+  public void uploadFile(HttpServerRequest request, Long maxSize, Handler<JsonObject> handler) {
+    uploadFile(request, defaultContainer, maxSize, handler);
+  }
 
-	public void uploadFile(final HttpServerRequest request, final String container, final Long maxSize,
-			final Handler<JsonObject> handler) {
-		request.setExpectMultipart(true);
-		request.uploadHandler(new Handler<HttpServerFileUpload>() {
-			@Override
-			public void handle(final HttpServerFileUpload upload) {
-				upload.pause();
-				final AtomicLong size = new AtomicLong(0l);
-				final JsonObject metadata = FileUtils.metadata(upload);
-				if (maxSize != null && maxSize < metadata.getLong("size", 0l)) {
-					handler.handle(new JsonObject().put("status", "error")
-							.put("message", "file.too.large"));
-					return;
-				}
-				final String id = UUID.randomUUID().toString();
-				final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
-						new Handler<HttpClientResponse>() {
-							@Override
-							public void handle(HttpClientResponse response) {
-								if (response.statusCode() == 201) {
-									if (metadata.getLong("size") == 0l) {
-										metadata.put("size", size.get());
-									}
-									handler.handle(new JsonObject().put("_id", id)
-											.put("status", "ok")
-											.put("metadata", metadata));
-								} else {
-									handler.handle(new JsonObject().put("status", "error"));
-								}
-							}
-						});
-				if (req == null) return;
-				req.putHeader("X-Auth-Token", token);
-				req.putHeader("Content-Type", metadata.getString("content-type"));
-				try {
-					req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
-							metadata.getString("filename"), EncoderUtil.Usage.WORD_ENTITY, 0));
-				} catch (IllegalArgumentException e) {
-					log.error(e.getMessage(), e);
-					req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
-				}
-				req.setChunked(true);
-				upload.handler(new Handler<Buffer>() {
-					public void handle(Buffer data) {
-						req.write(data);
-						size.addAndGet(data.length());
-					}
-				});
-				upload.endHandler(new Handler<Void>() {
-					public void handle(Void v) {
-						req.end();
-					}
-				});
-				upload.resume();
-			}
-		});
-	}
+  public void uploadFile(final HttpServerRequest request, final String container, final Long maxSize,
+                         final Handler<JsonObject> handler) {
+    request.setExpectMultipart(true);
+    request.uploadHandler(new Handler<HttpServerFileUpload>() {
+      @Override
+      public void handle(final HttpServerFileUpload upload) {
+        upload.pause();
+        final AtomicLong size = new AtomicLong(0l);
+        final JsonObject metadata = FileUtils.metadata(upload);
+        if (maxSize != null && maxSize < metadata.getLong("size", 0l)) {
+          handler.handle(new JsonObject().put("status", "error")
+              .put("message", "file.too.large"));
+          return;
+        }
+        final String id = UUID.randomUUID().toString();
+        httpClient.request(PUT, basePath + "/" + container + "/" + id)
+            .map(req -> {
+              req.putHeader("X-Auth-Token", token);
+              req.putHeader("Content-Type", metadata.getString("content-type"));
+              try {
+                req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+                    metadata.getString("filename"), EncoderUtil.Usage.WORD_ENTITY, 0));
+              } catch (IllegalArgumentException e) {
+                log.error(e.getMessage(), e);
+                req.putHeader("X-Object-Meta-Filename", metadata.getString("filename"));
+              }
+              req.setChunked(true);
+              return req;
+            })
+            .map(req -> {
+              upload.handler(data -> {
+                req.write(data);
+                size.addAndGet(data.length());
+              });
+              upload.endHandler(v -> req.send().onSuccess(response -> {
+                if (response.statusCode() == 201) {
+                  if (metadata.getLong("size") == 0l) {
+                    metadata.put("size", size.get());
+                  }
+                  handler.handle(new JsonObject().put("_id", id)
+                      .put("status", "ok")
+                      .put("metadata", metadata));
+                } else {
+                  handler.handle(new JsonObject().put("status", "error"));
+                }
+              }));
+              upload.resume();
+              return req;
+            });
+        upload.resume();
+      }
+    });
+  }
 
-	public void downloadFile(String id, final HttpServerRequest request) {
-		downloadFile(id, request, defaultContainer, true, null, null, null);
-	}
+  public void downloadFile(String id, final HttpServerRequest request) {
+    downloadFile(id, request, defaultContainer, true, null, null, null);
+  }
 
-	public void downloadFile(String id, String container, final HttpServerRequest request) {
-		downloadFile(id, request, container, true, null, null, null);
-	}
+  public void downloadFile(String id, String container, final HttpServerRequest request) {
+    downloadFile(id, request, container, true, null, null, null);
+  }
 
-	public void downloadFile(String id, final HttpServerRequest request,
-		 boolean inline, String downloadName, JsonObject metadata, final String eTag) {
-		downloadFile(id, request, defaultContainer, inline, downloadName, metadata, eTag);
-	}
+  public void downloadFile(String id, final HttpServerRequest request,
+                           boolean inline, String downloadName, JsonObject metadata, final String eTag) {
+    downloadFile(id, request, defaultContainer, inline, downloadName, metadata, eTag);
+  }
 
-	public void downloadFile(String id, final HttpServerRequest request, String container,
-			boolean inline, String downloadName, JsonObject metadata, final String eTag) {
-		downloadFile(id, request, container, inline, downloadName, metadata, eTag, null);
-	}
+  public void downloadFile(String id, final HttpServerRequest request, String container,
+                           boolean inline, String downloadName, JsonObject metadata, final String eTag) {
+    downloadFile(id, request, container, inline, downloadName, metadata, eTag, null);
+  }
 
-	public void downloadFile(String id, final HttpServerRequest request, boolean inline,
-			String downloadName, JsonObject metadata, final String eTag, Handler<AsyncResult<Void>> resultHandler) {
-		downloadFile(id, request, defaultContainer, inline, downloadName, metadata, eTag, resultHandler);
-	}
+  public void downloadFile(String id, final HttpServerRequest request, boolean inline,
+                           String downloadName, JsonObject metadata, final String eTag, Handler<AsyncResult<Void>> resultHandler) {
+    downloadFile(id, request, defaultContainer, inline, downloadName, metadata, eTag, resultHandler);
+  }
 
-	public void downloadFile(String id, final HttpServerRequest request, String container,
-			boolean inline, String downloadName, JsonObject metadata, final String eTag,
-			final Handler<AsyncResult<Void>> resultHandler) {
-		final HttpServerResponse resp = request.response();
-		if (!inline) {
-			java.lang.String name = FileUtils.getNameWithExtension(downloadName, metadata);
-			resp.putHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
-		}
-		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
-			@Override
-			public void handle(HttpClientResponse response) {
-				response.pause();
-				if (response.statusCode() == 200 || response.statusCode() == 304) {
-					resp.putHeader("ETag", ((eTag != null) ? eTag : response.headers().get("ETag")));
-					resp.putHeader("Content-Type", response.headers().get("Content-Type"));
-				}
-				if (response.statusCode() == 200) {
-					resp.setChunked(true);
-					response.handler(new Handler<Buffer>() {
-						@Override
-						public void handle(Buffer event) {
-							resp.write(event);
-						}
-					});
-					response.endHandler(new Handler<Void>() {
-						@Override
-						public void handle(Void event) {
-							resp.end();
-							if (resultHandler != null) {
-								resultHandler.handle(new DefaultAsyncResult<>((Void) null));
-							}
-						}
-					});
-					response.resume();
-				} else {
-					resp.setStatusCode(response.statusCode()).setStatusMessage(response.statusMessage()).end();
-					if (resultHandler != null) {
-						resultHandler.handle(new DefaultAsyncResult<>((Void) null));
-					}
-				}
-			}
-		});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		//req.putHeader("If-None-Match", request.headers().get("If-None-Match"));
-		req.end();
-	}
+  public void downloadFile(String id, final HttpServerRequest request, String container,
+                           boolean inline, String downloadName, JsonObject metadata, final String eTag,
+                           final Handler<AsyncResult<Void>> resultHandler) {
+    final HttpServerResponse resp = request.response();
+    if (!inline) {
+      java.lang.String name = FileUtils.getNameWithExtension(downloadName, metadata);
+      resp.putHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
+    }
+    httpClient.request(GET, basePath + "/" + container + "/" + id)
+        .map(req -> req.putHeader("X-Auth-Token", token))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+          response.pause();
+          if (response.statusCode() == 200 || response.statusCode() == 304) {
+            resp.putHeader("ETag", ((eTag != null) ? eTag : response.headers().get("ETag")));
+            resp.putHeader("Content-Type", response.headers().get("Content-Type"));
+          }
+          if (response.statusCode() == 200) {
+            resp.setChunked(true);
+            response.handler(new Handler<Buffer>() {
+              @Override
+              public void handle(Buffer event) {
+                resp.write(event);
+              }
+            });
+            response.endHandler(new Handler<Void>() {
+              @Override
+              public void handle(Void event) {
+                resp.end();
+                if (resultHandler != null) {
+                  resultHandler.handle(new DefaultAsyncResult<>((Void) null));
+                }
+              }
+            });
+            response.resume();
+          } else {
+            resp.setStatusCode(response.statusCode()).setStatusMessage(response.statusMessage()).end();
+            if (resultHandler != null) {
+              resultHandler.handle(new DefaultAsyncResult<>((Void) null));
+            }
+          }
+        })
+        .onFailure(th -> resultHandler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
-		readFile(id, defaultContainer, handler);
-	}
+  public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
+    readFile(id, defaultContainer, handler);
+  }
 
-	public void readFile(final String id, String container, final Handler<AsyncResult<StorageObject>> handler) {
-		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
-			@Override
-			public void handle(final HttpClientResponse response) {
-				response.pause();
-				if (response.statusCode() == 200) {
-					final Buffer buffer = Buffer.buffer();
-					response.handler(new Handler<Buffer>() {
-						@Override
-						public void handle(Buffer event) {
-							buffer.appendBuffer(event);
-						}
-					});
-					response.endHandler(new Handler<Void>() {
-						@Override
-						public void handle(Void event) {
-							String filename = response.headers().get("X-Object-Meta-Filename");
-							if (filename != null) {
-								try {
-									filename = DecoderUtil.decodeEncodedWords(
-											filename, DecodeMonitor.SILENT);
-								} catch (IllegalArgumentException e) {
-									log.error(e.getMessage(), e);
-								}
-							}
-							StorageObject o = new StorageObject(
-									id,
-									buffer,
-									filename,
-									response.headers().get("Content-Type")
-							);
-							handler.handle(new DefaultAsyncResult<>(o));
-						}
-					});
-					response.resume();
-				} else {
-					handler.handle(new DefaultAsyncResult<StorageObject>(new StorageException(response.statusMessage())));
-				}
-			}
-		});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.end();
-	}
+  public void readFile(final String id, String container, final Handler<AsyncResult<StorageObject>> handler) {
+    httpClient.request(GET, basePath + "/" + container + "/" + id)
+        .map(req -> req.putHeader("X-Auth-Token", token))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+          response.pause();
+          if (response.statusCode() == 200) {
+            final Buffer buffer = Buffer.buffer();
+            response.handler(new Handler<Buffer>() {
+              @Override
+              public void handle(Buffer event) {
+                buffer.appendBuffer(event);
+              }
+            });
+            response.endHandler(new Handler<Void>() {
+              @Override
+              public void handle(Void event) {
+                String filename = response.headers().get("X-Object-Meta-Filename");
+                if (filename != null) {
+                  try {
+                    filename = DecoderUtil.decodeEncodedWords(
+                        filename, DecodeMonitor.SILENT);
+                  } catch (IllegalArgumentException e) {
+                    log.error(e.getMessage(), e);
+                  }
+                }
+                StorageObject o = new StorageObject(
+                    id,
+                    buffer,
+                    filename,
+                    response.headers().get("Content-Type")
+                );
+                handler.handle(new DefaultAsyncResult<>(o));
+              }
+            });
+            response.resume();
+          } else {
+            handler.handle(new DefaultAsyncResult<StorageObject>(new StorageException(response.statusMessage())));
+          }
+        })
+        .onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void writeFile(StorageObject object, final Handler<AsyncResult<String>> handler) {
-		writeFile(object, defaultContainer, handler);
-	}
+  public void writeFile(StorageObject object, final Handler<AsyncResult<String>> handler) {
+    writeFile(object, defaultContainer, handler);
+  }
 
-	public void writeFile(StorageObject object, String container, final Handler<AsyncResult<String>> handler) {
-		final String id = (object.getId() != null) ? object.getId() : UUID.randomUUID().toString();
-		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
-				new Handler<HttpClientResponse>() {
-					@Override
-					public void handle(HttpClientResponse response) {
-						if (response.statusCode() == 201) {
-							handler.handle(new DefaultAsyncResult<>(id));
-						} else {
-							handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
-						}
-					}
-				});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.putHeader("Content-Type", object.getContentType());
-		try {
-			req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
-					object.getFilename(), EncoderUtil.Usage.WORD_ENTITY, 0));
-		} catch (IllegalArgumentException e) {
-			log.error(e.getMessage(), e);
-			req.putHeader("X-Object-Meta-Filename", object.getFilename());
-		}
-		req.end(object.getBuffer());
-	}
+  public void writeFile(StorageObject object, String container, final Handler<AsyncResult<String>> handler) {
+    final String id = (object.getId() != null) ? object.getId() : UUID.randomUUID().toString();
+    httpClient.request(PUT, basePath + "/" + container + "/" + id)
+        .map(req -> {
+          req.putHeader("X-Auth-Token", token);
+          req.putHeader("Content-Type", object.getContentType());
+          try {
+            req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+                object.getFilename(), EncoderUtil.Usage.WORD_ENTITY, 0));
+          } catch (IllegalArgumentException e) {
+            log.error("Cannot set header X-Object-Meta-Filename", e);
+            req.putHeader("X-Object-Meta-Filename", object.getFilename());
+          }
+          return req;
+        })
+        .flatMap(req -> req.send(object.getBuffer()))
+        .onSuccess(response -> {
+          if (response.statusCode() == 201) {
+            handler.handle(new DefaultAsyncResult<>(id));
+          } else {
+            handler.handle(new DefaultAsyncResult<>(new StorageException(response.statusMessage())));
+          }
+        }).onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void deleteFile(String id, final Handler<AsyncResult<Void>> handler) {
-		deleteFile(id, defaultContainer, handler);
-	}
+  public void deleteFile(String id, final Handler<AsyncResult<Void>> handler) {
+    deleteFile(id, defaultContainer, handler);
+  }
 
-	public void deleteFile(String id, String container, final Handler<AsyncResult<Void>> handler) {
-		final HttpClientRequest req = httpClient.delete(basePath + "/" + container + "/" + id,
-				new Handler<HttpClientResponse>() {
-					@Override
-					public void handle(HttpClientResponse response) {
-						if (response.statusCode() == 204) {
-							handler.handle(new DefaultAsyncResult<>((Void) null));
-						} else {
-							handler.handle(new DefaultAsyncResult<Void>(new StorageException(response.statusMessage())));
-						}
-					}
-				});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.end();
-	}
+  public void deleteFile(String id, String container, final Handler<AsyncResult<Void>> handler) {
+    httpClient.request(DELETE, basePath + "/" + container + "/" + id)
+        .map(req -> req.putHeader("X-Auth-Token", token))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+              if (response.statusCode() == 204) {
+                handler.handle(new DefaultAsyncResult<>((Void) null));
+              } else {
+                handler.handle(new DefaultAsyncResult<>(new StorageException(response.statusMessage())));
+              }
+            }
+        ).onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void copyFile(String from, final Handler<AsyncResult<String>> handler) {
-		copyFile(from, defaultContainer, handler);
-	}
+  public void copyFile(String from, final Handler<AsyncResult<String>> handler) {
+    copyFile(from, defaultContainer, handler);
+  }
 
-	public void copyFile(String from, String container, final Handler<AsyncResult<String>> handler) {
-		final String id = UUID.randomUUID().toString();
-		final HttpClientRequest req = httpClient.put(basePath + "/" + container + "/" + id,
-				new Handler<HttpClientResponse>() {
-					@Override
-					public void handle(HttpClientResponse response) {
-						if (response.statusCode() == 201) {
-							handler.handle(new DefaultAsyncResult<>(id));
-						} else {
-							handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
-						}
-					}
-				});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.putHeader("Content-Length", "0");
-		req.putHeader("X-Copy-From", "/" + container + "/" + from);
-		req.end();
-	}
+  public void copyFile(String from, String container, final Handler<AsyncResult<String>> handler) {
+    final String id = UUID.randomUUID().toString();
+    httpClient.request(PUT, basePath + "/" + container + "/" + id)
+        .map(req -> req.putHeader("X-Auth-Token", token)
+            .putHeader("Content-Length", "0")
+            .putHeader("X-Copy-From", "/" + container + "/" + from))
+        .flatMap(HttpClientRequest::send)
+        .onSuccess(response -> {
+          if (response.statusCode() == 201) {
+            handler.handle(new DefaultAsyncResult<>(id));
+          } else {
+            handler.handle(new DefaultAsyncResult<>(new StorageException(response.statusMessage())));
+          }
+        })
+        .onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void writeToFileSystem(String id, String destination, Handler<AsyncResult<String>> handler) {
-		writeToFileSystem(id, destination, defaultContainer, handler);
-	}
+  public void writeToFileSystem(String id, String destination, Handler<AsyncResult<String>> handler) {
+    writeToFileSystem(id, destination, defaultContainer, handler);
+  }
 
-	public void writeToFileSystem(String id, final String destination, String container,
-			final Handler<AsyncResult<String>> handler) {
-		HttpClientRequest req = httpClient.get(basePath + "/" + container + "/" + id, new Handler<HttpClientResponse>() {
-			@Override
-			public void handle(final HttpClientResponse response) {
-				response.pause();
-				if (response.statusCode() == 200) {
-					vertx.fileSystem().open(destination, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
-						public void handle(final AsyncResult<AsyncFile> ar) {
-							if (ar.succeeded()) {
-								response.endHandler(new Handler<Void>() {
-									@Override
-									public void handle(Void aVoid) {
-										ar.result().close();
-										handler.handle(new DefaultAsyncResult<>(destination));
-									}
-								});
-								Pump p = Pump.pump(response, ar.result());
-								p.start();
+  public void writeToFileSystem(String id, final String destination, String container,
+                                final Handler<AsyncResult<String>> handler) {
+    httpClient.request(GET, basePath + "/" + container + "/" + id)
+      .map(req -> req.putHeader("X-Auth-Token", token))
+      .flatMap(HttpClientRequest::send)
+      .onSuccess(response -> {
+        response.pause();
+        if (response.statusCode() == 200) {
+          vertx.fileSystem().open(destination, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
+            public void handle(final AsyncResult<AsyncFile> ar) {
+              if (ar.succeeded()) {
+                response.endHandler(new Handler<Void>() {
+                  @Override
+                  public void handle(Void aVoid) {
+                    ar.result().close();
+                    handler.handle(new DefaultAsyncResult<>(destination));
+                  }
+                });
+                Pump p = Pump.pump(response, ar.result());
+                p.start();
 
-								response.resume();
-							} else {
-								handler.handle(new DefaultAsyncResult<String>(ar.cause()));
-							}
-						}
-					});
-				} else {
-					handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
-				}
-			}
-		});
-		if (req == null) return;
-		req.putHeader("X-Auth-Token", token);
-		req.end();
-	}
+                response.resume();
+              } else {
+                handler.handle(new DefaultAsyncResult<String>(ar.cause()));
+              }
+            }
+          });
+        } else {
+          handler.handle(new DefaultAsyncResult<String>(new StorageException(response.statusMessage())));
+        }
+      })
+      .onFailure(th -> handler.handle(new DefaultAsyncResult<>(th)));
+  }
 
-	public void writeFromFileSystem(final String id, String path, final String container,
-			final Handler<JsonObject> handler) {
-		if (id == null || id.trim().isEmpty() || path == null ||
-				path.trim().isEmpty() || path.endsWith(File.separator)) {
-			handler.handle(new JsonObject().put("status", "error")
-					.put("message", "invalid.parameter"));
-			return;
-		}
-		final String filename = path.contains(File.separator) ?
-				path.substring(path.lastIndexOf(File.separator) + 1) : path;
-		final String contentType = getContentType(path);
-		vertx.fileSystem().open(path, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
-			@Override
-			public void handle(AsyncResult<AsyncFile> asyncFileAsyncResult) {
-				if (asyncFileAsyncResult.succeeded()) {
-					final HttpClientRequest req = httpClient.put(
-							basePath + "/" + container + "/" + id,
-							new Handler<HttpClientResponse>() {
-								@Override
-								public void handle(HttpClientResponse response) {
-									if (response.statusCode() == 201) {
-										handler.handle(new JsonObject().put("_id", id)
-												.put("status", "ok"));
-									} else {
-										handler.handle(new JsonObject().put("status", "error"));
-									}
-								}
-							});
-					if (req == null) return;
-					req.putHeader("X-Auth-Token", token);
-					req.putHeader("Content-Type", contentType);
-					try {
-						req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
-								filename, EncoderUtil.Usage.WORD_ENTITY, 0));
-					} catch (IllegalArgumentException e) {
-						log.error(e.getMessage(), e);
-						req.putHeader("X-Object-Meta-Filename", filename);
-					}
-					req.setChunked(true);
-					Pump p = Pump.pump(asyncFileAsyncResult.result(), req);
-					asyncFileAsyncResult.result().endHandler(new Handler<Void>() {
-						@Override
-						public void handle(Void aVoid) {
-							req.end();
-						}
-					});
-					p.start();
-				} else {
-					handler.handle(new JsonObject().put("status", "error")
-							.put("message", asyncFileAsyncResult.cause().getMessage()));
-				}
-			}
-		});
-	}
+  public void writeFromFileSystem(final String id, String path, final String container,
+                                  final Handler<JsonObject> handler) {
+    if (id == null || id.trim().isEmpty() || path == null ||
+        path.trim().isEmpty() || path.endsWith(File.separator)) {
+      handler.handle(new JsonObject().put("status", "error")
+          .put("message", "invalid.parameter"));
+      return;
+    }
+    final String filename = path.contains(File.separator) ?
+        path.substring(path.lastIndexOf(File.separator) + 1) : path;
+    final String contentType = getContentType(path);
+    vertx.fileSystem().open(path, new OpenOptions(), new Handler<AsyncResult<AsyncFile>>() {
+      @Override
+      public void handle(AsyncResult<AsyncFile> asyncFileAsyncResult) {
+        if (asyncFileAsyncResult.succeeded()) {
+          httpClient.request(PUT, basePath + "/" + container + "/" + id)
+            .map(req -> {
+              req.putHeader("X-Auth-Token", token);
+              req.putHeader("Content-Type", contentType);
+              try {
+                req.putHeader("X-Object-Meta-Filename", EncoderUtil.encodeIfNecessary(
+                    filename, EncoderUtil.Usage.WORD_ENTITY, 0));
+              } catch (IllegalArgumentException e) {
+                log.error(e.getMessage(), e);
+                req.putHeader("X-Object-Meta-Filename", filename);
+              }
+              req.setChunked(true);
+              return req;
+            })
+            .onSuccess(req -> {
+              Pump p = Pump.pump(asyncFileAsyncResult.result(), req);
+              asyncFileAsyncResult.result().endHandler(aVoid -> req.send()
+                  .onSuccess(response -> {
+                    if (response.statusCode() == 201) {
+                      handler.handle(new JsonObject().put("_id", id)
+                          .put("status", "ok"));
+                    } else {
+                      handler.handle(new JsonObject().put("status", "error"));
+                    }
+                  })
+                  .onFailure(th -> {
+                    log.error("Error while sending data", th);
+                    handler.handle(new JsonObject().put("status", "error"));
+                  }));
+              p.start();
+            }).onFailure(th -> {
+              log.error("Cannot write file to filesystem", th);
+              handler.handle(new JsonObject().put("status", "error"));
+            });
+        } else {
+          handler.handle(new JsonObject().put("status", "error")
+              .put("message", asyncFileAsyncResult.cause().getMessage()));
+        }
+      }
+    });
+  }
 
-	private String getContentType(String p) {
-		try {
-			Path source = Paths.get(p);
-			return Files.probeContentType(source);
-		} catch (IOException e) {
-			return "";
-		}
-	}
+  private String getContentType(String p) {
+    try {
+      Path source = Paths.get(p);
+      return Files.probeContentType(source);
+    } catch (IOException e) {
+      return "";
+    }
+  }
 
-	public void close() {
-		if (tokenPeriodic != 0l) {
-			vertx.cancelTimer(tokenPeriodic);
-		}
-		if (httpClient != null) {
-			httpClient.close();
-		}
-	}
+  public void close() {
+    if (tokenPeriodic != 0l) {
+      vertx.cancelTimer(tokenPeriodic);
+    }
+    if (httpClient != null) {
+      httpClient.close();
+    }
+  }
 
 }
