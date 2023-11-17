@@ -16,7 +16,7 @@
   <url>https://github.com/web-education/vertx-swift-client</url>
 
   <properties>
-    <vertx.version>4.4.5</vertx.version>
+    <vertxVersion>4.4.5</vertxVersion>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -36,7 +36,7 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
-      <version>${vertx.version}</version>
+      <version>${vertxVersion}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
